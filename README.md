@@ -2,7 +2,7 @@
 
 **Looking for hardware files? The STL files for every printed part are in the [Releases](https://github.com/SamedVossberg/RatBot/releases) section of this repository.**
 
-RatBot is a small quadruped robot shaped like a rat. It is built on [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu and keeps its electronics and software: the Q8bot main PCB, which the leg servos plug into directly without cables, eight DYNAMIXEL XL330-M077-T servos for the legs, an ESP-NOW link between two Seeed Studio XIAO ESP32C3 boards, and the Python control GUI on the laptop. The body is new. Double parallelogram limbs based on the SQuRo robotic rat ([Shi et al., IEEE Transactions on Robotics, 2022](https://doi.org/10.1109/TRO.2022.3159188)) replace the Q8bot five bar legs, a head sits on a ninth servo, and a passive tail is mounted at the back.
+RatBot is a small quadruped robot shaped like a rat. It is built on [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu and keeps its electronics and software: the Q8bot main PCB, which the leg servos plug into directly without cables, eight DYNAMIXEL XL330-M077-T servos for the legs, an ESP-NOW link between two Seeed Studio XIAO ESP32C3 boards, and the Python control GUI on the laptop. The body is new. Double parallelogram limbs replace the Q8bot five bar legs, a head sits on a ninth servo, and a passive WIP tail is mounted at the back.
 
 <p align="center">
   <img src="docs/public/RatBot_render_iso.jpg" alt="RatBot rendered from the CAD model" width="98%">
@@ -60,15 +60,8 @@ python operate.py
   <em>The control GUI. Its previews still draw the Q8bot legs, see Status.</em>
 </p>
 
-## Status
-
-- **The gaits still use Q8bot kinematics.** The gait generator and inverse kinematics in `python-tools` model the Q8bot five bar leg (19.5 mm between the servo axes, 25 mm and 40 mm links). RatBot's limbs map servo angles to foot positions differently, so the gaits, poses and previews need porting to the new limb geometry before the foot paths match this robot.
-- **No limb mounting angles yet.** `ratbot_motor_config` finishes by moving the servos to the Q8bot leg mounting positions. The matching positions for RatBot's limbs are not defined yet.
-- **The head servo is not driven yet.** The firmware addresses the eight leg servos (IDs 11 to 18) only.
-- **The PCB is the Q8bot board, unchanged.** Its Gerber and BOM files are in the [Q8bot releases](https://github.com/EricYufengWu/q8bot/releases) and on its [PCBWay project page](https://www.pcbway.com/project/shareproject/Q8bot_PCB_Robot_dfa65114.html).
-
 ## Credits and License
 
-RatBot is derived from [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu. The firmware, python-tools and setup guides started from Q8bot at commit `f86fefc`. The first commit of this repository holds those files unchanged, so the history after it shows everything RatBot changed. If you build on this work, please also cite the Q8bot papers: [design, IROS 2025](https://ieeexplore.ieee.org/abstract/document/11246322) and [control and data acquisition, UR 2025](https://ieeexplore.ieee.org/abstract/document/11078123/). The limb geometry follows SQuRo by [Shi et al.](https://doi.org/10.1109/TRO.2022.3159188)
+RatBot is derived from [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu. The firmware, python-tools and setup guides started from Q8bot at commit `f86fefc`. The first commit of this repository holds those files unchanged, so the history after it shows everything RatBot changed. If you build on this work, please also cite the Q8bot papers: [design, IROS 2025](https://ieeexplore.ieee.org/abstract/document/11246322) and [control and data acquisition, UR 2025](https://ieeexplore.ieee.org/abstract/document/11078123/).
 
 Like Q8bot, this repository is released under the [MIT License](LICENSE).
