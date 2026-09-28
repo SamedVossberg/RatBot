@@ -48,6 +48,14 @@ class q8_espnow:
         self.serialHandler.write("0,0,0,0,0,0,0,0,4,0,0;".encode())
         return True
 
+    def send_recover(self):
+        # Clears latched servo faults and re-enables torque on the robot. The
+        # local flag must follow, or the next move_all would carry torque=0 and
+        # the firmware would read that as a request to switch torque back off.
+        self.serialHandler.write("0,0,0,0,0,0,0,0,5,0,1;".encode())
+        self.torque_on = True
+        return True
+
     def move_all(self, joints_pos, dur = 0, record = True):
         # Expects 8 positions in deg. For example: [0, 90, 0, 90, 0, 90, 0, 90]
         try:

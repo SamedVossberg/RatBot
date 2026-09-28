@@ -16,6 +16,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
+        ('docs/poses/*.png', 'docs/poses'),
         ('docs/Instruction_Default.jpg', 'docs'),
         ('docs/Instruction_Joystick.jpg', 'docs'),
     ],

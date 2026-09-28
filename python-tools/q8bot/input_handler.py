@@ -31,6 +31,22 @@ class InputHandler:
         self.use_joystick = use_joystick
         self.joystick = joystick
         self.joystick_mapping = joystick_mapping
+        self._held_action_keys = set()
+
+    def keyboard_action_pressed_once(self, action_name, events):
+        """One toggle per key press, also when a joystick is connected."""
+        key = KEYBOARD_MAPPING['actions'][action_name]
+        pressed = False
+        for event in events:
+            if event.type == pygame.WINDOWFOCUSLOST:
+                self._held_action_keys.discard(key)
+            elif event.type == pygame.KEYUP and event.key == key:
+                self._held_action_keys.discard(key)
+            elif event.type == pygame.KEYDOWN and event.key == key:
+                if key not in self._held_action_keys and not getattr(event, 'repeat', False):
+                    pressed = True
+                self._held_action_keys.add(key)
+        return pressed
 
     def get_movement_direction(self):
         """

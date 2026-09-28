@@ -9,12 +9,17 @@ import time
 import pygame
 import sys
 import argparse
+import os
 from kinematics_solver import k_solver
 from espnow import q8_espnow
 from helpers import XiaoPortFinder, Q8Logger
 from gait_manager import GaitManager, GAITS
 from routine_generator import show_range, greet
 from input_handler import InputHandler, detect_and_init_joystick
+from sitting_pose import SittingPose
+from rearing_pose import RearingPose
+from control_panel import ControlPanel, WINDOW_SIZE
+import eth_theme as eth
 
 # Q8bot leg configuration
 CENTER_DIST = 19.5  # Distance between two actuators
@@ -63,7 +68,8 @@ else:
 
 # Start pygame instance
 pygame.init()
-window = pygame.display.set_mode((1280, 720))
+window = pygame.display.set_mode(WINDOW_SIZE)
+pygame.display.set_caption('Q8bot - Gaits and poses')
 clock = pygame.time.Clock()
 
 # Set up pygame surface for logger
@@ -73,9 +79,7 @@ Q8Logger.set_pygame_surface(window)
 use_joystick, joystick, joystick_mapping = detect_and_init_joystick()
 input_handler = InputHandler(use_joystick, joystick, joystick_mapping)
 
-# Load appropriate instruction image based on input device
-import os
-
+# Resolve images for both source runs and PyInstaller executables.
 def get_resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
     try:
@@ -86,23 +90,15 @@ def get_resource_path(relative_path):
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
-if use_joystick:
-    instruction_image_path = get_resource_path(os.path.join("docs", "Instruction_Joystick.jpg"))
-else:
-    instruction_image_path = get_resource_path(os.path.join("docs", "Instruction_Default.jpg"))
-
-try:
-    instruction_image = pygame.image.load(instruction_image_path)
-    # Scale image to fit the available space (1280x570)
-    instruction_image = pygame.transform.scale(instruction_image, (1280, 570))
-    log.info(f"Loaded instruction image: {os.path.basename(instruction_image_path)}")
-except Exception as e:
-    log.warning(f"Failed to load instruction image: {e}")
-    instruction_image = None
+control_panel = ControlPanel(get_resource_path(os.path.join('docs', 'poses')),
+                             use_joystick, joystick_mapping)
+log.info('Controls ready. G: switch gait. P: sit / stand. U: rear / lower.')
 
 # Initialize kinamatics solver and Q8bot ESPNow instance
 leg = k_solver(CENTER_DIST, L1, L2, L1, L2)
 q8 = q8_espnow(com_port)
+sitting_pose = SittingPose(leg, q8)
+rearing_pose = RearingPose(leg, q8)
 q8.enable_torque()
 
 # Initialize GaitManager
@@ -124,19 +120,66 @@ time.sleep(2)
 
 while True:
     clock.tick(SPEED)
-    pygame.event.get()
+    events = pygame.event.get()
+    if (any(event.type == pygame.QUIT or
+            (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)
+            for event in events) or input_handler.is_action_pressed('exit')):
+        break
+
+    transition_error = rearing_pose.update()
+    if transition_error:
+        log.error(transition_error)
+
+    # Consume both keys every frame so holding either never repeats a toggle.
+    sit_pressed = input_handler.keyboard_action_pressed_once('sit', events)
+    rear_pressed = input_handler.keyboard_action_pressed_once('rear', events)
+    if rear_pressed:
+        if sitting_pose.blocks_movement():
+            log.info('Press P to stand before rearing.')
+        else:
+            try:
+                toggle = rearing_pose.retry_lowering if rearing_pose.failed else rearing_pose.toggle
+                if toggle(pos_x, pos_y):
+                    if record:
+                        q8.finish_recording()
+                    record = False
+                    gait_manager.stop()
+                    movement = False
+                    log.info('Rearing pose' if rearing_pose.active else 'Lowering to gait position')
+                else:
+                    log.error('Could not send rearing/lowering pose')
+            except ValueError as error:
+                log.error(str(error))
+    elif sit_pressed and rearing_pose.blocks_movement():
+        log.info('Press U to lower before sitting.')
+    elif sit_pressed:
+        try:
+            if sitting_pose.toggle(pos_x, pos_y):
+                if record:
+                    q8.finish_recording()
+                record = False
+                gait_manager.stop()
+                movement = False
+                log.info("Sitting pose" if sitting_pose.active else "Returning to gait position")
+            else:
+                log.error("Could not send sitting/standing pose")
+        except ValueError as error:
+            log.error(str(error))
 
     # Clear screen and render logger messages
-    window.fill((0, 0, 0))  # Black background
-
-    # Draw instruction image below logger (if loaded)
-    if instruction_image is not None:
-        window.blit(instruction_image, (0, 150))  # Position at y=150 (below logger)
-
+    window.fill(eth.BACKGROUND)
+    display_pose = rearing_pose if rearing_pose.blocks_movement() else sitting_pose
+    control_panel.draw(window, gait_manager.current_gait, display_pose)
     Q8Logger.render_pygame_messages()  # Draw logger on top
     pygame.display.flip()
 
-    if movement:
+    if sitting_pose.blocks_movement() or rearing_pose.blocks_movement():
+        # Keep the static pose; battery checks and exit remain available.
+        if input_handler.is_action_pressed('battery'):
+            q8.check_battery()
+            request = "battery"
+            time.sleep(0.2)
+    elif movement:
         # Get requested direction from input handler
         requested_direction = input_handler.get_movement_direction()
 
@@ -166,6 +209,11 @@ while True:
             log.info("Gait Reset")
             move_xy(pos_x, pos_y, 500)
             time.sleep(0.2)
+        elif input_handler.is_action_pressed('recover'):
+            log.info("Recovering servos: clearing faults and re-enabling torque")
+            q8.send_recover()
+            time.sleep(2)
+            move_xy(pos_x, pos_y, 1000)
         elif input_handler.is_action_pressed('jump'):
             log.info("Jump")
             q8.send_jump()
@@ -206,19 +254,16 @@ while True:
             time.sleep(0.2)
         elif input_handler.is_action_pressed('exit'):
             break
-        else:
-            try:
-                while q8.serialHandler.in_waiting > 0:  # Check if there is any data waiting to be read
-                    raw_data = q8.serialHandler.readline().decode('utf-8').strip() # Read a line and decode it
-                    raw_data = raw_data.split()
-                    while raw_data and raw_data[-1] == '0':
-                        raw_data.pop()
-                    # print(f"Received data: {raw_data}")
-                    if request == "battery":
-                        log.info(f"Battery: {int(raw_data[0])}%")
+
+    # Drain replies while sitting as well as while operating a gait.
+    try:
+        while q8.serialHandler.in_waiting > 0:
+            raw_data = q8.serialHandler.readline().decode('utf-8').strip().split()
+            if request == "battery" and raw_data and raw_data[0].isdigit():
+                log.info(f"Battery: {int(raw_data[0])}%")
                 request = "none"
-            except:
-                log.debug("Data reading failed. Continuing...")
+    except (ValueError, UnicodeError):
+        log.debug("Data reading failed. Continuing...")
 
 q8.disable_torque()
 if joystick:

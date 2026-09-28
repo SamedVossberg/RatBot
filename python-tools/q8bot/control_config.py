@@ -22,6 +22,8 @@ KEYBOARD_MAPPING = {
         'forward_right': pygame.K_e,
     },
     'actions': {
+        'sit': pygame.K_p,
+        'rear': pygame.K_u,
         'greet': pygame.K_h,
         'battery': pygame.K_b,
         'switch_gait': pygame.K_g,
@@ -30,6 +32,7 @@ KEYBOARD_MAPPING = {
         'exit': pygame.K_ESCAPE,
         'record': pygame.K_z,
         'show_range': pygame.K_c,
+        'recover': pygame.K_x,
     }
 }
 
