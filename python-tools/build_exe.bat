@@ -1,14 +1,14 @@
 @echo off
-REM Build Q8bot single-file executable using PyInstaller
+REM Build RatBot single-file executable using PyInstaller
 REM
 REM Prerequisites:
 REM   pip install pyinstaller
 REM
 REM Output:
-REM   dist/q8bot.exe
+REM   dist/ratbot.exe
 
 echo ========================================
-echo Building Q8bot Executable
+echo Building RatBot Executable
 echo ========================================
 echo.
 
@@ -30,21 +30,21 @@ if exist dist rmdir /s /q dist
 REM Build executable
 echo.
 echo Building executable...
-python -m PyInstaller q8bot_build.spec
+python -m PyInstaller ratbot_build.spec
 
 REM Check if build succeeded
-if exist dist\q8bot.exe (
+if exist dist\ratbot.exe (
     echo.
     echo ========================================
     echo Build successful!
     echo ========================================
     echo.
-    echo Executable location: dist\q8bot.exe
+    echo Executable location: dist\ratbot.exe
     echo.
     echo Usage:
-    echo   dist\q8bot.exe           - Auto-detect COM port
-    echo   dist\q8bot.exe COM3      - Use specific COM port
-    echo   dist\q8bot.exe --debug   - Enable debug logging
+    echo   dist\ratbot.exe           - Auto-detect COM port
+    echo   dist\ratbot.exe COM3      - Use specific COM port
+    echo   dist\ratbot.exe --debug   - Enable debug logging
     echo.
 ) else (
     echo.

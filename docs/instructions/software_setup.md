@@ -6,7 +6,7 @@
 
 [**Software Setup**]()
 
-[Back to Project Page](https://github.com/EricYufengWu/q8bot)
+[Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
 ## Software Overview
 
@@ -32,7 +32,7 @@ If you check the latest project release, you will notice that we have two availa
 
 The microcontroller part of the code is developed in [PlatformIO](https://platformio.org/). If you haven't used it before, please refer to their official documentation and tutorials to setup the environment. Someone has also tried converting PlatformIO projects to Arduino IDE script [here](https://runningdeveloper.com/blog/platformio-project-to-arduino-ide/).
 
-Upload `firmware/q8bot_robot` to the Q8bot robot, and upload `firmware/q8bot_controller` to the Q8bot controller. The process will be similar to steps 10 - 13 in [Robot Assembly](robot_assembly.md). Make sure you have selected your desired build (perm vs auto) as shown in the screenshot below.The default is robot_permanent/controller_permanent.
+Upload `firmware/ratbot_robot` to the robot, and upload `firmware/ratbot_controller` to the controller. The process will be similar to steps 10 - 13 in [Robot Assembly](robot_assembly.md). Make sure you have selected your desired build (perm vs auto) as shown in the screenshot below.The default is robot_permanent/controller_permanent.
 
 <p align="center">
     <img src="sw_buildver.jpg" width="90%">
@@ -76,7 +76,7 @@ Attach the batteries to the robot (double-check polarity!). Power on the robot w
 
 Plug in the controller board to your laptop/PC.
 
-Navigate to `/python-tools/q8bot` folder and run:
+Navigate to `/python-tools/ratbot` folder and run:
 
     python operate.py
 

@@ -1,14 +1,14 @@
-# Build Q8bot single-file executable using PyInstaller
+# Build RatBot single-file executable using PyInstaller
 # PowerShell version
 #
 # Prerequisites:
 #   pip install pyinstaller
 #
 # Output:
-#   dist/q8bot.exe
+#   dist/ratbot.exe
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "Building Q8bot Executable" -ForegroundColor Cyan
+Write-Host "Building RatBot Executable" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host
 
@@ -34,21 +34,21 @@ if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
 # Build executable
 Write-Host
 Write-Host "Building executable..." -ForegroundColor Yellow
-python -m PyInstaller q8bot_build.spec
+python -m PyInstaller ratbot_build.spec
 
 # Check if build succeeded
-if (Test-Path "dist\q8bot.exe") {
+if (Test-Path "dist\ratbot.exe") {
     Write-Host
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "Build successful!" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
     Write-Host
-    Write-Host "Executable location: dist\q8bot.exe" -ForegroundColor Cyan
+    Write-Host "Executable location: dist\ratbot.exe" -ForegroundColor Cyan
     Write-Host
     Write-Host "Usage:" -ForegroundColor Yellow
-    Write-Host "  .\dist\q8bot.exe           - Auto-detect COM port"
-    Write-Host "  .\dist\q8bot.exe COM3      - Use specific COM port"
-    Write-Host "  .\dist\q8bot.exe --debug   - Enable debug logging"
+    Write-Host "  .\dist\ratbot.exe           - Auto-detect COM port"
+    Write-Host "  .\dist\ratbot.exe COM3      - Use specific COM port"
+    Write-Host "  .\dist\ratbot.exe --debug   - Enable debug logging"
     Write-Host
 } else {
     Write-Host

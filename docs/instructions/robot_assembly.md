@@ -6,7 +6,7 @@
 
 [Software Setup](software_setup.md)
 
-[Back to Project Page](https://github.com/EricYufengWu/q8bot)
+[Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
 ## Before You Begin:
 
@@ -84,14 +84,14 @@
 
 **Note: The following motor setup instructions only works if you have brand new DYNAMIXEL motors that has not been configured before. If you are re-using the motors from previous projects, you will have to manually configure them using by following this instruction: [DXL_config_manual](DXL_config_manual.md).**
 
-10. The next steps involve the use of [PlatformIO](https://platformio.org/) on Microsoft Visual Studio Code to configure the smart servo motors. If you haven't used it before, please refer to their official documentation and tutorials to setup the environment. Download or clone the q8bot repository to open this folder: `firmware/q8bot_motor_config`. With your battery installed and power turned on, connect your Q8bot PCB to your laptop using a USB-C cable.
+10. The next steps involve the use of [PlatformIO](https://platformio.org/) on Microsoft Visual Studio Code to configure the smart servo motors. If you haven't used it before, please refer to their official documentation and tutorials to setup the environment. Download or clone the RatBot repository to open this folder: `firmware/ratbot_motor_config`. With your battery installed and power turned on, connect your Q8bot PCB to your laptop using a USB-C cable.
 
 11. Select the correct COM port by clicking the button circled in read, or leave it as "Auto" which will detect the correct port most of the time.
 <p align="center">
     <img src="assem_port.jpg" width="90%">
 </p>
 
-12. Upload the q8bot_motor_config firmware to the Q8bot PCB by clicking the button with an arrow shape (circled in read).
+12. Upload the ratbot_motor_config firmware to the Q8bot PCB by clicking the button with an arrow shape (circled in read).
 <p align="center">
     <img src="assem_upload.jpg" width="90%">
 </p>

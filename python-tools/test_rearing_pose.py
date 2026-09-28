@@ -9,7 +9,7 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / 'q8bot'))
+sys.path.insert(0, str(ROOT / 'ratbot'))
 import pygame
 from control_panel import ControlPanel
 from gait_manager import GAITS
@@ -180,7 +180,7 @@ class RearingTests(unittest.TestCase):
              patch.object(InputHandler, 'is_action_pressed', return_value=False), \
              patch('time.sleep'), \
              patch.object(sys, 'argv', ['operate.py', 'mock-port']):
-            runpy.run_path(str(ROOT / 'q8bot' / 'operate.py'), run_name='__main__')
+            runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(self.robot.move_all.call_count, 1)
         self.robot.disable_torque.assert_called_once()
 
@@ -220,7 +220,7 @@ class RearingTests(unittest.TestCase):
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
              patch.object(sys, 'argv', ['operate.py', 'mock-port']):
-            runpy.run_path(str(ROOT / 'q8bot' / 'operate.py'), run_name='__main__')
+            runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(counts[8], 3)
         self.assertEqual(counts[12], 3)
         self.assertEqual(self.robot.move_all.call_count, 6)

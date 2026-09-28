@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / 'q8bot'))
+sys.path.insert(0, str(ROOT / 'ratbot'))
 import pygame
 from gait_manager import GAITS
 from input_handler import InputHandler
@@ -96,7 +96,7 @@ class SittingPoseTests(unittest.TestCase):
              patch.object(InputHandler, 'is_action_pressed', return_value=False), \
              patch('time.sleep'), \
              patch.object(sys, 'argv', ['operate.py', 'mock-port']):
-            runpy.run_path(str(ROOT / 'q8bot' / 'operate.py'), run_name='__main__')
+            runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(calls[2], 1)
         self.assertEqual(calls[4], 1)
         self.assertEqual(calls[5], 2)

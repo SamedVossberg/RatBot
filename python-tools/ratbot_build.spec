@@ -1,18 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for Q8bot single-file executable.
+PyInstaller spec file for RatBot single-file executable.
 
 Usage:
-    pyinstaller q8bot_build.spec
+    pyinstaller ratbot_build.spec
 
 Output:
-    dist/q8bot.exe - Single file executable
+    dist/ratbot.exe - Single file executable
 """
 
 block_cipher = None
 
 a = Analysis(
-    ['q8bot/operate.py'],
+    ['ratbot/operate.py'],
     pathex=[],
     binaries=[],
     datas=[
@@ -53,7 +53,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='q8bot',
+    name='ratbot',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

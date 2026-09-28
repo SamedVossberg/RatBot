@@ -38,7 +38,7 @@ def move_xy(x, y, dur = 0, deg = True):
     return success
 
 # Parse command-line arguments
-parser = argparse.ArgumentParser(description='Q8bot control script')
+parser = argparse.ArgumentParser(description='RatBot control script')
 parser.add_argument('com_port', nargs='?', help='COM port for ESP32C3 (optional, auto-detect if not provided)')
 parser.add_argument('--debug', action='store_true', help='Enable debug logging')
 args = parser.parse_args()
@@ -69,7 +69,7 @@ else:
 # Start pygame instance
 pygame.init()
 window = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption('Q8bot - Gaits and poses')
+pygame.display.set_caption('RatBot - Gaits and poses')
 clock = pygame.time.Clock()
 
 # Set up pygame surface for logger

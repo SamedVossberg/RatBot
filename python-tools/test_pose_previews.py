@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT / 'q8bot'))
+sys.path.insert(0, str(ROOT / 'ratbot'))
 import pygame
 import eth_theme as eth
 from control_panel import ControlPanel, WINDOW_SIZE
@@ -114,7 +114,7 @@ class PreviewTests(unittest.TestCase):
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
              patch.object(sys, 'argv', ['operate.py', 'mock-port']):
-            runpy.run_path(str(ROOT / 'q8bot' / 'operate.py'), run_name='__main__')
+            runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(seen, list(GAITS) + ['TROT', 'SITTING', 'TROT'])
         robot.disable_torque.assert_called_once()
 
@@ -139,7 +139,7 @@ class PreviewTests(unittest.TestCase):
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
              patch.object(sys, 'argv', ['operate.py', 'mock-port']):
-            runpy.run_path(str(ROOT / 'q8bot' / 'operate.py'), run_name='__main__')
+            runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(robot.move_all.call_count, 1)  # Sit only; no walking.
         robot.check_battery.assert_called_once()
         robot.disable_torque.assert_called_once()

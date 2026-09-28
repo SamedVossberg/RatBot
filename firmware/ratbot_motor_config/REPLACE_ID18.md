@@ -22,7 +22,7 @@ that program automatically moves all motors at its end.
    linkage. The existing assembly code uses **5622 ticks** for ID18. This helper
    deliberately does not execute that movement; it needs a separate controlled
    alignment step with the linkage detached, followed by a check of leg orientation.
-7. Restore the normal `q8bot_robot` / `robot_permanent` firmware before operating.
+7. Restore the normal `ratbot_robot` / `robot_permanent` firmware before operating.
 
 The target values, taken from the current automatic setup and the previous
 working ID18 configuration, are ID18, baud register 3 (1 Mbps), Operating Mode 4,

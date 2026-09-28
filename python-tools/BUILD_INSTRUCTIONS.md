@@ -1,6 +1,6 @@
-# Q8bot Executable Build Instructions
+# RatBot Executable Build Instructions
 
-This guide explains how to build a single-file executable for Q8bot.
+This guide explains how to build a single-file executable for RatBot.
 
 ## Prerequisites
 
@@ -25,10 +25,10 @@ Run the build script:
 
 Or manually:
 ```cmd
-python -m PyInstaller q8bot_build.spec
+python -m PyInstaller ratbot_build.spec
 ```
 
-**Output:** `dist/q8bot.exe`
+**Output:** `dist/ratbot.exe`
 
 ### Linux / macOS
 
@@ -40,43 +40,43 @@ chmod +x build_exe.sh
 
 Or manually:
 ```bash
-python -m PyInstaller q8bot_build.spec
+python -m PyInstaller ratbot_build.spec
 ```
 
-**Output:** `dist/q8bot`
+**Output:** `dist/ratbot`
 
 ## Running the Executable
 
 ### Windows
 ```cmd
 # Auto-detect COM port
-dist\q8bot.exe
+dist\ratbot.exe
 
 # Specify COM port
-dist\q8bot.exe COM3
+dist\ratbot.exe COM3
 
 # Enable debug logging
-dist\q8bot.exe --debug
+dist\ratbot.exe --debug
 
 # Specify COM port with debug logging
-dist\q8bot.exe COM3 --debug
+dist\ratbot.exe COM3 --debug
 ```
 
 ### Linux / macOS
 ```bash
 # Auto-detect serial port
-./dist/q8bot
+./dist/ratbot
 
 # Specify serial port
-./dist/q8bot /dev/ttyUSB0
+./dist/ratbot /dev/ttyUSB0
 
 # Enable debug logging
-./dist/q8bot --debug
+./dist/ratbot --debug
 ```
 
 ## Build Configuration
 
-The build is configured in `q8bot_build.spec`:
+The build is configured in `ratbot_build.spec`:
 
 - **Single file:** All dependencies bundled into one executable
 - **Console mode:** Shows console for logging output
@@ -97,7 +97,7 @@ The build is configured in `q8bot_build.spec`:
 
 ### Executable won't run
 - Make sure Visual C++ Redistributables are installed (Windows)
-- On Linux, ensure executable permissions: `chmod +x dist/q8bot`
+- On Linux, ensure executable permissions: `chmod +x dist/ratbot`
 
 ### Large file size
 - UPX compression is enabled but can be improved
@@ -108,6 +108,6 @@ The build is configured in `q8bot_build.spec`:
 The generated executable is self-contained and can be distributed to other computers with the same OS. Users do NOT need Python installed.
 
 **Note:** You still need to distribute for each platform separately:
-- Windows users need `q8bot.exe` (built on Windows)
-- Linux users need `q8bot` (built on Linux)
-- macOS users need `q8bot` (built on macOS)
+- Windows users need `ratbot.exe` (built on Windows)
+- Linux users need `ratbot` (built on Linux)
+- macOS users need `ratbot` (built on macOS)

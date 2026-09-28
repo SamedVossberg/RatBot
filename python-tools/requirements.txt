@@ -1,4 +1,4 @@
-# Q8bot Python Dependencies
+# RatBot Python Dependencies
 
 # Core scientific computing
 numpy>=1.26.2

@@ -15,7 +15,7 @@ os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-sys.path.insert(0, str(ROOT / 'q8bot'))
+sys.path.insert(0, str(ROOT / 'ratbot'))
 
 import pygame
 import eth_theme as eth
@@ -26,7 +26,7 @@ from sitting_pose import SittingPose
 
 pygame.init()
 window = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption('Q8bot - Gaits and poses')
+pygame.display.set_caption('RatBot - Gaits and poses')
 Q8Logger.set_pygame_surface(window)
 panel = ControlPanel(ROOT / 'docs' / 'poses')
 

@@ -1,17 +1,17 @@
-# Q8bot python-tools
+# RatBot python-tools
 
-Python control software for the Q8bot quadruped robot.
+Python control software for the RatBot quadruped, based on the Q8bot python-tools.
 
 ## Quick Start
 
-See [Software Setup](../building_instructions/software_setup.md) for details on running from source.
+See [Software Setup](../docs/instructions/software_setup.md) for details on running from source.
 
 With the Pygame window focused, press **P** to toggle a static sitting pose:
 the front legs extend and the rear legs crouch over one second. Press **P**
 again to return to the selected gait's resting position. Holding P does not
 repeat the toggle. Walking and other motion routines are paused while sitting;
 **B** (battery) and **Esc** (exit and release torque) still work.
-The pose heights and transition duration are in `q8bot/sitting_pose.py`.
+The pose heights and transition duration are in `ratbot/sitting_pose.py`.
 The sitting targets are 60 mm at the front and 20 mm at the rear. These are
 foot distances from the leg mounts in the kinematic model.
 
@@ -29,7 +29,7 @@ before entering the other one (**P** for sitting, **U** for rearing).
 
 The rearward adjustment subtracts 13 degrees from both rear joint angles
 of the greeting support stance, giving rear pairs `[37, 62]` and fixed front
-pairs `[-45, 45]`. `REARWARD_ANGLE_OFFSET` in `q8bot/rearing_pose.py` is the tuning
+pairs `[-45, 45]`. `REARWARD_ANGLE_OFFSET` in `ratbot/rearing_pose.py` is the tuning
 parameter. Balance depends on payload mass/location and floor contact: the
 geometry tests do not establish that a weighted robot can hold this pose.
 Support the chassis during the first physical trial. No feedback balancing is
@@ -41,7 +41,7 @@ These are illustrations of the commanded geometry, not live measurements.
 Regenerate the pictures after changing gait or sitting parameters:
 
 ```bash
-venv/bin/python q8bot/pose_preview.py
+venv/bin/python ratbot/pose_preview.py
 ```
 
 Run the hardware-free geometry, input, image and GUI tests:
@@ -57,8 +57,8 @@ Follow these steps to build a standalone executable that can run without Python 
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/q8bot.git
-cd q8bot/python-tools
+git clone https://github.com/SamedVossberg/RatBot.git
+cd RatBot/python-tools
 ```
 
 ### 2. Create a Virtual Environment (Recommended)
@@ -127,31 +127,31 @@ The built executable will be located in:
 
 ```
 dist/
-├── q8bot.exe          (Windows)
-└── q8bot              (macOS/Linux)
+├── ratbot.exe         (Windows)
+└── ratbot             (macOS/Linux)
 ```
 
 ### Running the Executable
 
 **Auto-detect COM port:**
 ```bash
-./dist/q8bot
+./dist/ratbot
 ```
 
 **Specify COM port:**
 ```bash
-./dist/q8bot COM3              # Windows
-./dist/q8bot /dev/ttyUSB0      # Linux
+./dist/ratbot COM3              # Windows
+./dist/ratbot /dev/ttyUSB0      # Linux
 ```
 
 **Enable debug logging:**
 ```bash
-./dist/q8bot --debug
+./dist/ratbot --debug
 ```
 
 **Combine options:**
 ```bash
-./dist/q8bot COM3 --debug
+./dist/ratbot COM3 --debug
 ```
 
 ## Distribution

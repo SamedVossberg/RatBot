@@ -1,14 +1,14 @@
 #!/bin/bash
-# Build Q8bot single-file executable using PyInstaller
+# Build RatBot single-file executable using PyInstaller
 #
 # Prerequisites:
 #   pip install pyinstaller
 #
 # Output:
-#   dist/q8bot
+#   dist/ratbot
 
 echo "========================================"
-echo "Building Q8bot Executable"
+echo "Building RatBot Executable"
 echo "========================================"
 echo
 
@@ -27,21 +27,21 @@ rm -rf build dist
 # Build executable
 echo
 echo "Building executable..."
-python -m PyInstaller q8bot_build.spec
+python -m PyInstaller ratbot_build.spec
 
 # Check if build succeeded
-if [ -f "dist/q8bot" ]; then
+if [ -f "dist/ratbot" ]; then
     echo
     echo "========================================"
     echo "Build successful!"
     echo "========================================"
     echo
-    echo "Executable location: dist/q8bot"
+    echo "Executable location: dist/ratbot"
     echo
     echo "Usage:"
-    echo "  ./dist/q8bot           - Auto-detect COM port"
-    echo "  ./dist/q8bot /dev/ttyUSB0  - Use specific serial port"
-    echo "  ./dist/q8bot --debug   - Enable debug logging"
+    echo "  ./dist/ratbot           - Auto-detect COM port"
+    echo "  ./dist/ratbot /dev/ttyUSB0  - Use specific serial port"
+    echo "  ./dist/ratbot --debug   - Enable debug logging"
     echo
 else
     echo

@@ -1,13 +1,13 @@
-# Q8bot servo diagnostics
+# RatBot servo diagnostics
 
 Temporary read-only firmware for the robot's XIAO ESP32C3, to compare ID18 with
 IDs 11-17. It uses the configured bus (Protocol 2.0, 1 Mbps) and does not change
 servo IDs, calibration, profiles, torque, or target positions. It replaces the
-robot's application firmware; restore `q8bot_robot` afterward to operate normally.
+robot's application firmware; restore `ratbot_robot` afterward to operate normally.
 
 Close the control app and switch battery power off before connecting the robot
 by USB and uploading. Once uploaded, power the servos from the robot's batteries
-and read the serial monitor at 115200 baud. Do not flash `q8bot_motor_config`.
+and read the serial monitor at 115200 baud. Do not flash `ratbot_motor_config`.
 
 The scan reads hardware errors, supply voltage, temperature, current, torque,
 positions and configuration. Read failures are distinct from a valid zero.
