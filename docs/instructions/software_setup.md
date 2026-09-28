@@ -8,6 +8,8 @@
 
 [Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
+> **RatBot:** RatBot releases contain hardware files only. The prebuilt firmware binaries and the Windows executable mentioned below come from the Q8bot releases and predate the changes in this repository (for example servo fault recovery on **X**), so build the firmware from `firmware/` and run the GUI from source.
+
 ## Software Overview
 
 Please excuse my messy code as I am a mechanical engineer by training :D

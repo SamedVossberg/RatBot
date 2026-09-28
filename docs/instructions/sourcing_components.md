@@ -8,6 +8,8 @@
 
 [Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
+> **RatBot:** this is the Q8bot sourcing guide. RatBot uses the same PCB, cells, battery clips and controller dongle, but needs 9 XL330-M077-T servos (the ninth moves the head), 24 692ZZ bearings and its own printed parts. The Q8bot print list below does not apply: see [RatBot Parts](ratbot_parts.md), and download the STL files from the [RatBot releases](https://github.com/SamedVossberg/RatBot/releases).
+
 
 The complete **bill of materials (BOM)** of Q8bot can be accessed [**here**](https://docs.google.com/spreadsheets/d/1M1K_Dghia-Mn2t4RStW8juN6r4e3I3OBy6M_fPFHzs8/edit?usp=sharing). The links and prices are mainly for purchasing within the US. To accommodate different users, we've set up multiple "tiers" based on the tools you might have available. Please read the following sections carefully to choose the build configuration that works best for you. 
 

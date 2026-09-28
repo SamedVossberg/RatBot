@@ -8,9 +8,11 @@
 
 [Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
+> **RatBot:** these are the Q8bot assembly steps. The PCB, batteries, servos and the servo configuration firmware (`firmware/ratbot_motor_config`) are shared with RatBot, but its limbs, head and tail are different parts that these steps do not cover. The configuration firmware ends by moving the servos to the Q8bot leg mounting positions. See [RatBot Parts](ratbot_parts.md) for the RatBot parts.
+
 ## Before You Begin:
 
-- This instruction assume that you have either: (a) purchased the fully-assembled Q8bot PCB from PCBWay, or (b) reflow soldered the PCB yourself following the information found in the [`/PCBA`](../PCBA/) folder.
+- This instruction assume that you have either: (a) purchased the fully-assembled Q8bot PCB from PCBWay, or (b) reflow soldered the PCB yourself following the PCB assembly files in the [Q8bot releases](https://github.com/EricYufengWu/q8bot/releases).
 
 - If you are stuck or find the instruction confusing, please refer to the latest CAD model. If you still have trouble understanding, feel free to contact the author for clarification.
 
