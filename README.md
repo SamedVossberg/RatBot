@@ -2,7 +2,7 @@
 
 **Looking for hardware files? The STL files for every printed part are in the [Releases](https://github.com/SamedVossberg/RatBot/releases) section of this repository.**
 
-RatBot is a small quadruped robot shaped like a rat. It is built on [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu and keeps its electronics and software: the Q8bot main PCB, which the leg servos plug into directly without cables, eight DYNAMIXEL XL330-M077-T servos for the legs, an ESP-NOW link between two Seeed Studio XIAO ESP32C3 boards, and the Python control GUI on the laptop. The body is new. Double parallelogram limbs replace the Q8bot five bar legs, a head sits on a ninth servo, and a passive WIP tail is mounted at the back.
+RatBot is a small quadruped robot shaped like a rat. It is built on [Q8bot](https://github.com/EricYufengWu/q8bot) by Yufeng (Eric) Wu. It uses the Q8bot main PCB, which the leg servos plug into directly without cables, eight DYNAMIXEL XL330-M077-T servos for the legs, an ESP-NOW link between two Seeed Studio XIAO ESP32C3 boards, and a Python control GUI on the laptop. Biomimetic double parallelogram limbs replace the Q8bot five bar legs, a head sits on a ninth servo, and a passive WIP tail is mounted at the back.
 
 <p align="center">
   <img src="docs/public/RatBot_render_iso.jpg" alt="RatBot rendered from the CAD model" width="98%">
