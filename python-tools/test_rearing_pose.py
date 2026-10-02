@@ -188,8 +188,8 @@ class RearingTests(unittest.TestCase):
         self.robot.serialHandler.in_waiting = 0
         frame, pictures, counts = [0], [], {}
         original_draw = ControlPanel.draw
-        def draw(panel, window, gait, pose):
-            original_draw(panel, window, gait, pose)
+        def draw(panel, window, gait, pose, calibration=None, head=None):
+            original_draw(panel, window, gait, pose, calibration, head)
             pictures.append(panel.active_preview)
             if frame[0] == 8:
                 pygame.image.save(window, '/tmp/q8-rearing-gui.png')

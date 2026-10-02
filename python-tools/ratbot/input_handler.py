@@ -87,6 +87,16 @@ class InputHandler:
                 return 'fr_0.75'  # Map to moderate forward-right turn
             return None
 
+    def head_direction(self):
+        """1 while Left is held, -1 while Right is held, else 0.
+
+        Read from the keyboard also when a joystick is connected.
+        """
+        keys = pygame.key.get_pressed()
+        left = bool(keys[KEYBOARD_MAPPING['head']['left']])
+        right = bool(keys[KEYBOARD_MAPPING['head']['right']])
+        return int(left) - int(right)
+
     def is_movement_input(self):
         """
         Check if any movement input is active.

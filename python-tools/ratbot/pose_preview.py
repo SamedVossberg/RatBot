@@ -1,13 +1,17 @@
-"""Generate gait illustrations from Q8bot kinematics, with no hardware access."""
+"""Generate gait illustrations from Q8bot kinematics, with no hardware access.
+
+Pictures are per leg design. The limb shape comes from ``leg_geometry``, which
+is the same description the calibration diagram draws and the solvers command,
+so an illustration cannot show a linkage the robot will not make.
+"""
 import math
 from pathlib import Path
 
 import pygame
 import eth_theme as eth
-from gait_manager import GAITS, GaitManager
-from kinematics_solver import k_solver
-from sitting_pose import SittingPose
-from rearing_pose import RearingPose
+import leg_geometry
+from gait_manager import GaitManager
+from leg_designs import DEFAULT_DESIGN, design_for
 
 PREVIEW_SIZE = (800, 480)
 DESCRIPTIONS = {
@@ -29,7 +33,41 @@ def preview_key(gait, active, pose_name='SITTING'):
     return pose_name if active else gait
 
 
-def make_preview(name):
+def _pose_positions(name, design, leg):
+    """The eight joint angles and four body heights this picture shows."""
+    if name == 'SITTING':
+        foot_x, front, rear = design.sitting
+        heights = [front] * 2 + [rear] * 2
+        positions = []
+        for height in heights:
+            q1, q2, valid = leg.ik_solve(foot_x, height)
+            if not valid:
+                raise ValueError(f'Sitting preview is unreachable for {design.key}')
+            positions.extend((q1, q2))
+        return positions, heights
+    if name == 'REARING':
+        from rearing_pose import RearingPose
+        return RearingPose.target_positions(design.rearing), [0] * 4
+    manager = GaitManager(leg, design.gaits)
+    if not manager.load_gait(name):
+        raise ValueError(f'Cannot generate preview for {name} on {design.key}')
+    trajectory = manager.current_trajectories[name]['f']
+    # Sample halfway through the first swing segment, away from an endpoint.
+    positions = trajectory[max(1, design.gaits[name][6] // 2) % len(trajectory)]
+    return positions, [design.gaits[name][2]] * 4
+
+
+def _detail(name, design):
+    if name == 'SITTING':
+        _, front, rear = design.sitting
+        return f'Front {front:g} mm  /  Rear {rear:g} mm'
+    if name == 'REARING':
+        return f'Rear joint offset {design.rearing[3]:g} deg  /  No waving'
+    params = design.gaits[name]
+    return f'Rest height {params[2]:g} mm  /  Stride span {params[3]:g} mm'
+
+
+def make_preview(name, design=None):
     """A static illustration of a representative gait phase or seated posture.
 
     Limb geometry uses the real solver; chassis spacing and perspective are
@@ -37,26 +75,9 @@ def make_preview(name):
     """
     if not pygame.font.get_init():
         pygame.font.init()
-    leg = k_solver()
-    if name == 'SITTING':
-        heights = [SittingPose.FRONT_HEIGHT] * 2 + [SittingPose.REAR_HEIGHT] * 2
-        positions = []
-        for height in heights:
-            q1, q2, valid = leg.ik_solve(SittingPose.FOOT_X, height)
-            if not valid:
-                raise ValueError('Sitting preview is unreachable')
-            positions.extend((q1, q2))
-    elif name == 'REARING':
-        positions = RearingPose.target_positions()
-        heights = [0] * 4
-    else:
-        manager = GaitManager(leg)
-        if not manager.load_gait(name):
-            raise ValueError(f'Cannot generate preview for {name}')
-        trajectory = manager.current_trajectories[name]['f']
-        # Sample halfway through the first swing segment, away from an endpoint.
-        positions = trajectory[max(1, GAITS[name][6] // 2) % len(trajectory)]
-        heights = [GAITS[name][2]] * 4
+    design = design or design_for(DEFAULT_DESIGN)
+    leg = design.solver()
+    positions, heights = _pose_positions(name, design, leg)
 
     # Render at 2x then downsample for smooth diagonal limbs and text.
     scale = 2
@@ -97,35 +118,45 @@ def make_preview(name):
     text('STATIC POSE' if name in ('SITTING', 'REARING') else 'GAIT PREVIEW', 18, accent, (28, 23))
     text(title, 44, eth.TEXT_PRIMARY, (28, 47))
     text(description, 23, eth.TEXT_SECONDARY, (28, 95))
+    text(design.title.upper() + ' LEG', 18, eth.TEXT_MUTED, (628, 23))
     # A ground grid supplies context for leg clearance and body tilt.
     for x in range(-100, 101, 25):
         line(eth.GRID, project(x, -58, 0), project(x, 58, 0), 1)
     for side in range(-50, 51, 25):
         line(eth.GRID, project(-105, side, 0), project(105, side, 0), 1)
 
+    # Widths and outlines per link role, so every design reads the same way.
+    STYLE = {leg_geometry.CRANK: (6, 10), leg_geometry.PUSHROD: (4, 8),
+             leg_geometry.BONE: (6, 10), leg_geometry.FRAME: (2, 0)}
+
     # FL, FR, BL, BR; far side is drawn first, chassis next, near side last.
     anchors = [(53, 27), (53, -27), (-53, 27), (-53, -27)]
     def draw_leg(index, far=False):
         body_x, side = anchors[index]
         height = heights[index]
-        q1, q2 = [math.radians(float(q)) for q in positions[index * 2:index * 2 + 2]]
-        foot_x, foot_y = leg.fk_solve(math.degrees(q1), math.degrees(q2))
+        q1, q2 = (float(q) for q in positions[index * 2:index * 2 + 2])
+        pivots = leg_geometry.pivots(leg, q1, q2)
         def local(x, y):
             return body_project(body_x + x - leg.d / 2, side, height - y)
-        hips = [local(leg.d, 0), local(0, 0)]
-        knees = [local(leg.d + leg.l1 * math.cos(q1), leg.l1 * math.sin(q1)),
-                 local(leg.l1p * math.cos(q2), leg.l1p * math.sin(q2))]
-        foot = local(foot_x, foot_y)
+        screen = {key: local(x, y) for key, (x, y) in pivots.items()}
         rod = far_accent if far else accent
-        for hip, knee in zip(hips, knees):
-            line(eth.OUTLINE, hip, knee, 11)
-            line(rod, hip, knee, 7)
-            line(eth.OUTLINE, knee, foot, 9)
-            line(far_shank if far else eth.SHANK, knee, foot, 5)
-            circle(eth.OUTLINE, knee, 5)
-            circle(rod, knee, 3)
-            circle(eth.CHASSIS_FILL, hip, 9)
-            circle(eth.JOINT_CORE, hip, 4)
+        shank = far_shank if far else eth.SHANK
+        for a, b, role in leg_geometry.links(pivots):
+            width, outline = STYLE[role]
+            colour = rod if role == leg_geometry.CRANK else (
+                eth.CHASSIS_FILL if role == leg_geometry.FRAME else shank)
+            if outline:
+                line(eth.OUTLINE, screen[a], screen[b], outline)
+            line(colour, screen[a], screen[b], width)
+        motors = leg_geometry.motor_pivots()
+        for key, position in screen.items():
+            if key in motors:
+                circle(eth.CHASSIS_FILL, position, 9)
+                circle(eth.JOINT_CORE, position, 4)
+            elif key != leg_geometry.foot_pivot():
+                circle(eth.OUTLINE, position, 5)
+                circle(rod, position, 3)
+        foot = screen[leg_geometry.foot_pivot()]
         circle(eth.OUTLINE, foot, 7)
         circle(rod, foot, 4)
         if not far:
@@ -150,25 +181,31 @@ def make_preview(name):
     poly(accent, [(725, 176), (716, 171), (716, 181)])
     text('FRONT', 17, accent, (681, 151))
     line(eth.PANEL_RULE, (28, 420), (772, 420), 1)
-    if name == 'SITTING':
-        detail = f'Front {SittingPose.FRONT_HEIGHT:g} mm  /  Rear {SittingPose.REAR_HEIGHT:g} mm'
-    elif name == 'REARING':
-        detail = f'Rear joint offset {RearingPose.REARWARD_ANGLE_OFFSET:g} deg  /  No waving'
-    else:
-        params = GAITS[name]
-        detail = f'Rest height {params[2]:g} mm  /  Stride span {params[3]:g} mm'
-    text(detail, 22, eth.TEXT_SECONDARY, (28, 437))
+    text(_detail(name, design), 22, eth.TEXT_SECONDARY, (28, 437))
     text('Kinematic illustration', 18, eth.TEXT_MUTED, (615, 439))
     return pygame.transform.smoothscale(surface, PREVIEW_SIZE)
 
 
-def generate_previews(directory):
+def generate_previews(directory, design=None):
+    """Write one design's ten pictures into ``directory``."""
+    design = design or design_for(DEFAULT_DESIGN)
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     for name in DESCRIPTIONS:
-        pygame.image.save(make_preview(name), str(directory / f'{name.lower()}.png'))
+        pygame.image.save(make_preview(name, design), str(directory / f'{name.lower()}.png'))
+
+
+def generate_all(root):
+    """Regenerate every available design's pictures under ``root/<design>/``."""
+    from leg_designs import selectable
+    root = Path(root)
+    written = []
+    for design in selectable():
+        generate_previews(root / design.asset_dir, design)
+        written.append(design.key)
+    return written
 
 
 if __name__ == '__main__':
-    generate_previews(Path(__file__).resolve().parent.parent / 'docs' / 'poses')
-    print(f'Generated {len(DESCRIPTIONS)} gait/pose pictures.')
+    keys = generate_all(Path(__file__).resolve().parent.parent / 'docs' / 'poses')
+    print(f'Generated {len(DESCRIPTIONS)} pictures for: {", ".join(keys)}.')

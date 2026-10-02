@@ -35,14 +35,34 @@ geometry tests do not establish that a weighted robot can hold this pose.
 Support the chassis during the first physical trial. No feedback balancing is
 implemented; the preview's body angle is illustrative.
 
-The GUI includes a picture for all eight gaits, sitting and rearing. The
-picture follows **G**, **P** and **U**, and returns to the selected gait after lowering.
-These are illustrations of the commanded geometry, not live measurements.
-Regenerate the pictures after changing gait or sitting parameters:
+Hold **Left** or **Right** to turn the head, at 90° per second up to 90° either
+side of centre. Releasing the key holds the head where it is; the Turn head row
+shows the angle. The arrow keys work while walking, sitting, rearing and during
+leg calibration, with every leg design, and also when a joystick is connected.
+The head centres when the GUI starts. The angle is sent as an extra field of
+every joint command, so it needs the robot firmware from this repository; older
+robot firmware ignores it, and so does a robot without a head servo.
+
+Press **L** to change the leg design. The picker lists Q8, Full range and
+Biomimetic; Up/Down choose, Enter starts the attachment calibration for that
+design (Left/Right stay on the head), Esc cancels without changing anything. Calibration drives every joint
+to the design's mounting pose and holds it there while the linkages are fitted.
+Support the robot first: the feet leave the ground and torque is held until you
+press Enter or Esc. See [Leg designs and attachment calibration](docs/leg_designs.md)
+for the geometry and the mounting poses.
+
+The GUI includes a picture for all eight gaits, sitting and rearing, **for each
+leg design**. The picture follows **G**, **P** and **U**, and returns to the
+selected gait after lowering; fitting a different design through **L** swaps the
+whole set, along with that design's gait table and static poses. These are
+illustrations of the commanded geometry, not live measurements. Regenerate
+every design's pictures after changing gait or pose parameters:
 
 ```bash
 venv/bin/python ratbot/pose_preview.py
 ```
+
+They are written to `docs/poses/<design>/`.
 
 Run the hardware-free geometry, input, image and GUI tests:
 

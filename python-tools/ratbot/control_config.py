@@ -21,6 +21,11 @@ KEYBOARD_MAPPING = {
         'forward_left': pygame.K_q,
         'forward_right': pygame.K_e,
     },
+    # Keyboard in both input modes, like the sit and rear keys.
+    'head': {
+        'left': pygame.K_LEFT,
+        'right': pygame.K_RIGHT,
+    },
     'actions': {
         'sit': pygame.K_p,
         'rear': pygame.K_u,
@@ -32,6 +37,7 @@ KEYBOARD_MAPPING = {
         'exit': pygame.K_ESCAPE,
         'record': pygame.K_z,
         'show_range': pygame.K_c,
+        'change_legs': pygame.K_l,
         'recover': pygame.K_x,
     }
 }
