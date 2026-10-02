@@ -360,8 +360,8 @@ class OperateIntegrationTests(unittest.TestCase):
         seen = []
         original_draw = ControlPanel.draw
 
-        def draw(panel, window, gait, pose, calibration=None):
-            original_draw(panel, window, gait, pose, calibration)
+        def draw(panel, window, gait, pose, calibration=None, head=None):
+            original_draw(panel, window, gait, pose, calibration, head)
             seen.append((frame[0], calibration.stage if calibration else None))
 
         def events():

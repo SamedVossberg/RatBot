@@ -3,7 +3,7 @@
 The robot can be built with different leg linkages. **L** in the Pygame window
 opens the leg picker; choosing a design starts the attachment calibration for
 it. Up/Down move the cursor, Enter advances, Esc cancels at any point without
-changing the fitted design.
+changing the fitted design. Left/Right keep turning the head throughout.
 
 | Design | Linkage | Source model | State |
 |---|---|---|---|
@@ -78,6 +78,7 @@ outer leg servo, and is daisy chained from ID 11 or ID 13. The motor-config
 firmware sets it up, either during the first setup or on its own with
 `config_head`; see the
 [motor-config README](../../firmware/ratbot_motor_config/README.md).
+The Left and Right arrow keys turn it the same way whichever legs are fitted.
 
 ## Per-design gaits and pictures
 

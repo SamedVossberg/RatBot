@@ -28,6 +28,7 @@ class q8Dynamixel
     void setGain(uint16_t p_gain);
     void moveSingle(int32_t val);
     void bulkWrite(int32_t values[8]);
+    void moveHead(float deg);
     uint16_t* syncRead();
     void jump();
     uint8_t reportFaults();
@@ -53,6 +54,17 @@ class q8Dynamixel
     const int16_t _zeroOffset = 4096;
     const uint8_t _gearRatio = 1;
     int32_t _posArray[8];
+    // The head servo is optional and stays out of the leg arrays, so bulk
+    // writes, sync reads and gait profiles are leg-only and a robot without a
+    // head runs unchanged. Positive angles turn it left.
+    static const uint8_t _headId = 19;
+    static constexpr float _headLimitDeg = 90.0;
+    static const int32_t _headTicksPerSecond = 1024;  // 90 deg/s, the GUI's turn rate
+    bool _headSeen = false;    // Answered at least once since boot
+    bool _headReady = false;   // Goal register known, set when parked before torque-on
+    int32_t _headGoal = 0;
+    int32_t _headProfile = -1;
+    bool parkHead();
     uint16_t _profile = 0;
     uint16_t _prevProfile = 0;
     bool _profileValid = false;
@@ -60,6 +72,7 @@ class q8Dynamixel
     // 5 ms left no margin for bus contention; the library default is 100 ms.
     static const uint32_t _writeTimeout = 20;
     bool writeVerified(uint8_t item, uint8_t id, int32_t value);
+    bool reportFault(uint8_t id);
     bool _torqueFlag = false;
     bool _prevTorqueFlag = false;
     uint8_t _specialCmd = 0;

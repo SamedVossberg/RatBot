@@ -28,6 +28,10 @@ mounting pose (4618 / 5622 ticks) and the head to its centre, and holds them.
 Fit the head facing straight ahead while it is held. The program waits for the
 head after ID 18 and only finishes once all nine servos are configured.
 
+In operation, `ratbot_robot` parks the head's goal at its present position
+before every torque-on and then turns it as the GUI's Left and Right keys ask,
+up to 90° either side and at most 90° per second.
+
 ## Adding the head to a configured robot
 
 `config_head` configures only the head. It never enables torque, never commands

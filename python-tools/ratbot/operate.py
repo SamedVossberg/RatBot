@@ -22,6 +22,7 @@ from control_panel import ControlPanel, WINDOW_SIZE
 import eth_theme as eth
 from leg_calibration import LegCalibration, CONFIRM, FAILED, HOLD, PICK
 from leg_designs import DEFAULT_DESIGN, design_for
+from head_control import HeadControl
 
 # Q8bot leg configuration
 CENTER_DIST = 19.5  # Distance between two actuators
@@ -123,6 +124,8 @@ if not gait_manager.load_gait(gait_names[0]):
 
 # Leg-design picker and the leg-attachment calibration sequence.
 calibration = LegCalibration(q8)
+# Left/Right turn the head in every state, whichever legs are fitted.
+head = HeadControl(q8)
 
 def apply_leg_design(design):
     """Swap in a newly fitted design: solver, gait table, poses and pictures."""
@@ -163,13 +166,13 @@ def advance_calibration():
         apply_leg_design(design)
 
 def calibration_keys(events):
-    """Calibration owns the arrow keys and Enter while it is open."""
+    """Calibration owns Up/Down and Enter while it is open; Left/Right stay the head's."""
     for event in events:
         if event.type != pygame.KEYDOWN:
             continue
-        if event.key in (pygame.K_UP, pygame.K_LEFT):
+        if event.key == pygame.K_UP:
             calibration.move_cursor(-1)
-        elif event.key in (pygame.K_DOWN, pygame.K_RIGHT):
+        elif event.key == pygame.K_DOWN:
             calibration.move_cursor(1)
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             advance_calibration()
@@ -205,6 +208,8 @@ while True:
     transition_error = rearing_pose.update()
     if transition_error:
         log.error(transition_error)
+
+    head.update(input_handler.head_direction())
 
     # Consume both keys every frame so holding either never repeats a toggle.
     sit_pressed = input_handler.keyboard_action_pressed_once('sit', events)
@@ -247,7 +252,7 @@ while True:
     # Clear screen and render logger messages
     window.fill(eth.BACKGROUND)
     display_pose = rearing_pose if rearing_pose.blocks_movement() else sitting_pose
-    control_panel.draw(window, gait_manager.current_gait, display_pose, calibration)
+    control_panel.draw(window, gait_manager.current_gait, display_pose, calibration, head)
     Q8Logger.render_pygame_messages()  # Draw logger on top
     pygame.display.flip()
 

@@ -19,6 +19,7 @@ class ControlPanel:
         self.design_key = design_key
         self.previews = self._load(design_key)
         self.calibration_view = CalibrationPanel()
+        self._head_row_y = None
         self.controls = self._make_controls(use_joystick, joystick_mapping)
         self.active_preview = None
 
@@ -56,7 +57,8 @@ class ControlPanel:
         surface.blit(self.fonts[size].render(text, True, color), xy)
 
     def _make_controls(self, joystick, mapping):
-        panel = pygame.Surface((398, 564))
+        # Reaches down to the bottom of the gait chips on the right.
+        panel = pygame.Surface((398, 580))
         panel.fill(eth.PANEL)
         self._text(panel, 'CONTROLS', 20, eth.ACCENT, (24, 24))
         self._text(panel, 'Joystick + keyboard' if joystick else 'Keyboard', 32, eth.TEXT_PRIMARY, (24, 53))
@@ -67,6 +69,10 @@ class ControlPanel:
             keys = lambda names: '/'.join(pygame.key.name(move[n]).upper() for n in names)
             rows = [(keys(('forward', 'left', 'backward', 'right')), 'Move / turn'),
                     (keys(('forward_left', 'forward_right')), 'Forward with turn')]
+        # Keyboard in both modes, like the sit and rear keys.
+        head = KEYBOARD_MAPPING['head']
+        rows.append(('/'.join(pygame.key.name(head[n]).upper() for n in ('left', 'right')),
+                     'Turn head'))
         actions = [
             ('sit', 'Sit down / stand up'), ('rear', 'Rear up / lower'),
             ('switch_gait', 'Switch gait'), ('change_legs', 'Change legs'),
@@ -86,21 +92,30 @@ class ControlPanel:
                     key = 'ESC'
             rows.append((key, description))
         for index, (key, description) in enumerate(rows):
-            y = 109 + index * 32
+            y = 109 + index * 31
             pose_row = description in ('Sit down / stand up', 'Rear up / lower')
             color = eth.POSE_ACCENT if pose_row else eth.TEXT_SECONDARY
-            pygame.draw.rect(panel, eth.CHIP, (20, y - 4, 115, 29), border_radius=5)
+            pygame.draw.rect(panel, eth.CHIP, (20, y - 4, 115, 27), border_radius=5)
             self._text(panel, key, 20, color, (29, y + 2))
             self._text(panel, description, 23, color, (147, y + 1))
-        self._text(panel, 'Click this window to use keyboard controls.', 18, eth.TEXT_MUTED, (24, 537))
+            if description == 'Turn head':
+                self._head_row_y = y
+        self._text(panel, 'Click this window to use keyboard controls.', 18, eth.TEXT_MUTED, (24, 551))
         return panel
 
-    def draw(self, window, gait, pose, calibration=None):
+    def _draw_controls(self, window, head):
+        window.blit(self.controls, (20, 158))
+        if head is not None:
+            # The live angle, right-aligned on the Turn head row.
+            text = self.fonts[23].render(head.readout(), True, eth.ACCENT)
+            window.blit(text, (20 + 398 - 24 - text.get_width(), 158 + self._head_row_y + 1))
+
+    def draw(self, window, gait, pose, calibration=None, head=None):
         if calibration is not None and calibration.active:
-            return self._draw_calibration(window, calibration)
+            return self._draw_calibration(window, calibration, head)
         name = preview_key(gait, pose.active, pose.POSE_NAME)
         self.active_preview = name
-        window.blit(self.controls, (20, 158))
+        self._draw_controls(window, head)
         window.blit(self.previews[name], (440, 158))
         label = f'Return gait: {DESCRIPTIONS[gait][0]}' if pose.active else f'Selected gait: {DESCRIPTIONS[gait][0]}'
         self._text(window, label, 23, eth.TEXT_SECONDARY, (444, 652))
@@ -118,9 +133,9 @@ class ControlPanel:
                        eth.TEXT_ON_ACCENT if selected else eth.TEXT_MUTED, (x + 14, y + 6))
         self._status(window, pose.label())
 
-    def _draw_calibration(self, window, calibration):
+    def _draw_calibration(self, window, calibration, head=None):
         self.active_preview = calibration.POSE_NAME
-        window.blit(self.controls, (20, 158))
+        self._draw_controls(window, head)
         window.blit(self.calibration_view.render(calibration), (440, 158))
         self._status(window, calibration.label())
 

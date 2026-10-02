@@ -96,8 +96,8 @@ class PreviewTests(unittest.TestCase):
         seen = []
         pose = SittingPose(k_solver(), robot, lambda: frame[0] * .5)
         original_draw = ControlPanel.draw
-        def draw(panel, window, gait, sitting, calibration=None):
-            original_draw(panel, window, gait, sitting, calibration)
+        def draw(panel, window, gait, sitting, calibration=None, head=None):
+            original_draw(panel, window, gait, sitting, calibration, head)
             if not seen or seen[-1] != panel.active_preview:
                 seen.append(panel.active_preview)
         def events():

@@ -76,7 +76,17 @@ uint16_t q8Dynamixel::checkBattery(){
 }
 
 void q8Dynamixel::enableTorque(){
-  _dxl.torqueOn(BROADCAST_ID);
+  // The broadcast reaches the head too, which then holds whatever its goal
+  // register contains. Park that at the present position first.
+  if (parkHead()){
+    _dxl.torqueOn(BROADCAST_ID);
+    return;
+  }
+  // A stale goal could swing the head, so it stays limp until the next try.
+  Serial.println("[HEAD] Goal not confirmed, head left without torque");
+  for (int i = 0; i < _idCount; i++){
+    _dxl.torqueOn(_DXL[i]);
+  }
 }
 
 void q8Dynamixel::disableTorque(){
@@ -138,24 +148,28 @@ uint8_t q8Dynamixel::reportFaults(){
   Serial.printf("[FAULT] Pack %.0f mV (%.1f%%) at fault time\n",
                 FuelGauge.voltage(), FuelGauge.percent());
   for (int i = 0; i < _idCount; i++){
-    int32_t status = _dxl.readControlTableItem(HARDWARE_ERROR_STATUS, _DXL[i], _writeTimeout);
-    if (_dxl.getLastLibErrCode() != 0){
-      Serial.printf("[FAULT] Servo %u unreachable\n", _DXL[i]);
-      faulted++;
-      continue;
-    }
-    if (status != 0){
-      Serial.printf("[FAULT] Servo %u hardware error 0x%02lX:%s%s%s%s%s\n", _DXL[i],
-                    static_cast<unsigned long>(status),
-                    (status & 0x01) ? " input-voltage" : "",
-                    (status & 0x04) ? " overheating" : "",
-                    (status & 0x08) ? " encoder" : "",
-                    (status & 0x10) ? " electrical-shock" : "",
-                    (status & 0x20) ? " overload" : "");
-      faulted++;
-    }
+    if (reportFault(_DXL[i])) faulted++;
   }
+  // The head only once it has answered, so a robot without one stays quiet.
+  if (_headSeen && reportFault(_headId)) faulted++;
   return faulted;
+}
+
+bool q8Dynamixel::reportFault(uint8_t id){
+  int32_t status = _dxl.readControlTableItem(HARDWARE_ERROR_STATUS, id, _writeTimeout);
+  if (_dxl.getLastLibErrCode() != 0){
+    Serial.printf("[FAULT] Servo %u unreachable\n", id);
+    return true;
+  }
+  if (status == 0) return false;
+  Serial.printf("[FAULT] Servo %u hardware error 0x%02lX:%s%s%s%s%s\n", id,
+                static_cast<unsigned long>(status),
+                (status & 0x01) ? " input-voltage" : "",
+                (status & 0x04) ? " overheating" : "",
+                (status & 0x08) ? " encoder" : "",
+                (status & 0x10) ? " electrical-shock" : "",
+                (status & 0x20) ? " overload" : "");
+  return true;
 }
 
 void q8Dynamixel::recover(){
@@ -166,6 +180,7 @@ void q8Dynamixel::recover(){
   for (int i = 0; i < _idCount; i++){
     _dxl.reboot(_DXL[i], 200);
   }
+  if (_headSeen) _dxl.reboot(_headId, 200);
   delay(500);
   setOpMode();
   _profileValid = false;
@@ -224,6 +239,42 @@ void q8Dynamixel::bulkWrite(int32_t values[8]){
   _bw_infos.is_info_changed = true;
 
   _dxl.bulkWrite(&_bw_infos);
+}
+
+bool q8Dynamixel::parkHead(){
+  // Goal Position is RAM: after power-up, a reboot or a hand adjustment it need
+  // not match where the head is. Writing it with torque off moves nothing.
+  // Returns false only for a head that answers but could not be parked.
+  _headReady = false;
+  int32_t present = _dxl.readControlTableItem(PRESENT_POSITION, _headId, _writeTimeout);
+  if (_dxl.getLastLibErrCode() != 0) return true;  // No head on the bus
+  _headSeen = true;
+  if (!writeVerified(GOAL_POSITION, _headId, present)) return false;
+  _headGoal = present;
+  _headProfile = -1;
+  _headReady = true;
+  return true;
+}
+
+void q8Dynamixel::moveHead(float deg){
+  // Nothing to move without a head, or before it was parked at torque-on.
+  if (!_headReady || deg != deg) return;  // deg != deg: not a number
+  if (deg > _headLimitDeg) deg = _headLimitDeg;
+  if (deg < -_headLimitDeg) deg = -_headLimitDeg;
+  int32_t goal = _deg2Dxl(deg);
+  if (goal == _headGoal) return;
+  // Time-based profile: the move time grows with the distance, so the GUI's
+  // small steps blend into a steady turn and no jump is faster than 90 deg/s.
+  int32_t distance = goal > _headGoal ? goal - _headGoal : _headGoal - goal;
+  int32_t duration = (distance * 1000 + _headTicksPerSecond - 1) / _headTicksPerSecond;
+  if (duration != _headProfile){
+    // A goal sent with an unconfirmed profile could move at full speed.
+    _headProfile = -1;
+    if (!_dxl.writeControlTableItem(PROFILE_VELOCITY, _headId, duration, _writeTimeout) ||
+        !_dxl.writeControlTableItem(PROFILE_ACCELERATION, _headId, duration / 10, _writeTimeout)) return;
+    _headProfile = duration;
+  }
+  if (_dxl.writeControlTableItem(GOAL_POSITION, _headId, goal, _writeTimeout)) _headGoal = goal;
 }
 
 uint16_t* q8Dynamixel::syncRead(){
@@ -310,15 +361,21 @@ uint8_t q8Dynamixel::parseData(const char* myData) {
       setProfile(_profile);
     }
   }
-  if (token != nullptr) {                    // 1th value is torque enable/disable
+  bool torqueChanged = false;
+  if (token != nullptr) {                    // 11th value is torque enable/disable
     _torqueFlag = (std::atoi(token) == 1);
+    token = strtok(nullptr, ",");
     if (_torqueFlag != _prevTorqueFlag){
       Serial.println(_torqueFlag ? "[ROBOT] Torque on" : "[ROBOT] Torque off");
       toggleTorque(_torqueFlag);
       _prevTorqueFlag = _torqueFlag;
-      return 0;
+      torqueChanged = true;
     }
   }
+  if (token != nullptr && _torqueFlag) {     // 12th value is the head angle, optional
+    moveHead(std::atof(token));
+  }
+  if (torqueChanged) return 0;
   bulkWrite(_posArray);
   return check - 0;
 }

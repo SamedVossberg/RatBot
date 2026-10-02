@@ -29,11 +29,11 @@ The [RatBot parts list](docs/instructions/ratbot_parts.md) gives the print quant
 
 | Folder | Contents |
 |---|---|
-| [`firmware/ratbot_robot`](firmware/ratbot_robot) | Robot firmware: receives joint targets over ESP-NOW and drives the leg servos |
+| [`firmware/ratbot_robot`](firmware/ratbot_robot) | Robot firmware: receives joint targets over ESP-NOW and drives the leg and head servos |
 | [`firmware/ratbot_controller`](firmware/ratbot_controller) | Firmware for the USB dongle that relays commands from the laptop |
 | [`firmware/ratbot_motor_config`](firmware/ratbot_motor_config) | [Setup of the leg and head servos](firmware/ratbot_motor_config/README.md), SQuRo bench alignment, and tools for [replacing a single servo](firmware/ratbot_motor_config/REPLACE_ID18.md) |
 | [`firmware/ratbot_servo_diagnostics`](firmware/ratbot_servo_diagnostics) | Read-only servo bus diagnostics and bounded tests of a single servo |
-| [`python-tools`](python-tools) | The control GUI: gaits on keyboard or joystick, sitting and rearing poses, leg-design calibration, pose previews |
+| [`python-tools`](python-tools) | The control GUI: gaits on keyboard or joystick, head turning, sitting and rearing poses, leg-design calibration, pose previews |
 | [`docs/instructions`](docs/instructions) | Sourcing, assembly and software setup guides from Q8bot, plus the [RatBot parts list](docs/instructions/ratbot_parts.md) |
 
 ## Getting Started
@@ -52,7 +52,7 @@ cd ratbot
 python operate.py
 ```
 
-[Software Setup](docs/instructions/software_setup.md) covers pairing and troubleshooting. The [python-tools README](python-tools/README.md) describes the sitting (**P**) and rearing (**U**) poses, fault recovery (**X**) and the tests that run without hardware.
+[Software Setup](docs/instructions/software_setup.md) covers pairing and troubleshooting. The [python-tools README](python-tools/README.md) describes turning the head (**Left**/**Right**), the sitting (**P**) and rearing (**U**) poses, fault recovery (**X**) and the tests that run without hardware.
 
 <p align="center">
   <img src="python-tools/docs/gui/gui_walk.png" alt="RatBot control GUI" width="80%">
