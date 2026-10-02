@@ -8,7 +8,7 @@
 
 [Back to Project Page](https://github.com/SamedVossberg/RatBot)
 
-> **RatBot:** these are the Q8bot assembly steps. The PCB, batteries, servos and the servo configuration firmware (`firmware/ratbot_motor_config`) are shared with RatBot, but its limbs, head and tail are different parts that these steps do not cover. The configuration firmware ends by moving the servos to the Q8bot leg mounting positions. See [RatBot Parts](ratbot_parts.md) for the RatBot parts.
+> **RatBot:** these are the Q8bot assembly steps. The PCB, batteries, servos and the servo configuration firmware (`firmware/ratbot_motor_config`) are shared with RatBot, but its limbs, head and tail are different parts that these steps do not cover. The configuration firmware also sets up the head servo as ID 19 (step 18) and ends by moving the leg servos to the Q8bot leg mounting positions and the head to its centre. See [RatBot Parts](ratbot_parts.md) for the RatBot parts.
 
 ## Before You Begin:
 
@@ -128,11 +128,13 @@
 </p>
 
 18. Repeat steps 15-17 for the remaining motors: ID12 - ID18. Reminder to follow the labeling numbers sequentially, as the calibration code is written to only look for the next available motor.
+
+    **RatBot:** connect the head servo last. It is not plugged into the PCB: daisy chain it with a cable from the free connector of the front outer servo, ID 11 or ID 13, whichever side is convenient. It is configured as ID 19, and the program does not continue until it has been found.
 <p align="center">
     <img src="assem_motor4.jpg" width="90%">
 </p>
 
-19. Once all motors are connected, the program should automatically move all motors in preparation for leg installation. You may disconnect the robot from the laptop now, but keep it powered on.
+19. Once all motors are connected, the program should automatically move all motors in preparation for leg installation. On RatBot the head servo is driven to its centre and held: fit the head facing straight ahead. You may disconnect the robot from the laptop now, but keep it powered on.
 <p align="center">
     <img src="assem_motorcomplete.jpg" width="90%">
 </p>

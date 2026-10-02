@@ -11,10 +11,14 @@ class SittingPose:
     FOOT_X = 9.75
     TRANSITION_MS = 1000
 
-    def __init__(self, leg, robot, clock=time.monotonic):
+    def __init__(self, leg, robot, clock=time.monotonic, targets=None):
         self.leg = leg
         self.robot = robot
         self.clock = clock
+        # (foot_x, front, rear) for the fitted leg design; the class constants
+        # remain the five-bar values so existing callers keep working.
+        self.foot_x, self.front_height, self.rear_height = targets or (
+            self.FOOT_X, self.FRONT_HEIGHT, self.REAR_HEIGHT)
         self.active = False
         self.transition_until = 0.0
 
@@ -29,8 +33,8 @@ class SittingPose:
         if self.active:
             positions = self._pair(gait_x, gait_y) * 4
         else:
-            front = self._pair(self.FOOT_X, self.FRONT_HEIGHT)
-            rear = self._pair(self.FOOT_X, self.REAR_HEIGHT)
+            front = self._pair(self.foot_x, self.front_height)
+            rear = self._pair(self.foot_x, self.rear_height)
             # Servo order, as in append_pos_list: FL, FR, BL, BR.
             positions = front * 2 + rear * 2
 

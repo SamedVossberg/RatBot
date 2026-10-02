@@ -32,6 +32,7 @@ KEYBOARD_MAPPING = {
         'exit': pygame.K_ESCAPE,
         'record': pygame.K_z,
         'show_range': pygame.K_c,
+        'change_legs': pygame.K_l,
         'recover': pygame.K_x,
     }
 }

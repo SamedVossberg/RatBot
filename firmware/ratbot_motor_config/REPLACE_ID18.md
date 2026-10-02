@@ -3,7 +3,7 @@
 The `replace_id18` PlatformIO environment configures one replacement XL330-M077-T
 (model 1190), while leaving IDs 11–17 untouched. It replaces the robot application
 temporarily and contains no torque-on or position commands. The original
-`seeed_xiao_esp32c3` environment remains the complete eight-servo assembly program;
+`seeed_xiao_esp32c3` environment remains the complete assembly program (the eight leg servos and the head);
 that program automatically moves all motors at its end.
 
 1. Close Pygame. With battery power and USB disconnected, install the replacement

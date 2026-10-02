@@ -20,6 +20,8 @@ from sitting_pose import SittingPose
 from rearing_pose import RearingPose
 from control_panel import ControlPanel, WINDOW_SIZE
 import eth_theme as eth
+from leg_calibration import LegCalibration, CONFIRM, FAILED, HOLD, PICK
+from leg_designs import DEFAULT_DESIGN, design_for
 
 # Q8bot leg configuration
 CENTER_DIST = 19.5  # Distance between two actuators
@@ -94,19 +96,22 @@ control_panel = ControlPanel(get_resource_path(os.path.join('docs', 'poses')),
                              use_joystick, joystick_mapping)
 log.info('Controls ready. G: switch gait. P: sit / stand. U: rear / lower.')
 
-# Initialize kinamatics solver and Q8bot ESPNow instance
-leg = k_solver(CENTER_DIST, L1, L2, L1, L2)
+# Initialize kinematics solver and Q8bot ESPNow instance. Every motion
+# parameter below comes from the fitted leg design, so a swap changes the
+# solver, the gait table and the two static poses together.
+fitted_design = design_for(DEFAULT_DESIGN)
+leg = fitted_design.solver()
 q8 = q8_espnow(com_port)
-sitting_pose = SittingPose(leg, q8)
-rearing_pose = RearingPose(leg, q8)
+sitting_pose = SittingPose(leg, q8, targets=fitted_design.sitting)
+rearing_pose = RearingPose(leg, q8, waypoints=fitted_design.rearing)
 q8.enable_torque()
 
 # Initialize GaitManager
-gait_names = list(GAITS.keys())
-gait_manager = GaitManager(leg, GAITS)
+gait_names = list(fitted_design.gaits.keys())
+gait_manager = GaitManager(leg, fitted_design.gaits)
 
 # Starting location of leg end effector in x and y
-first_gait_params = GAITS[gait_names[0]]
+first_gait_params = fitted_design.gaits[gait_names[0]]
 pos_x = first_gait_params[1]
 pos_y = first_gait_params[2]
 move_xy(pos_x, pos_y, 1000)
@@ -116,15 +121,86 @@ if not gait_manager.load_gait(gait_names[0]):
     log.error(f"Failed to load default gait: {gait_names[0]}")
     sys.exit(1)
 
+# Leg-design picker and the leg-attachment calibration sequence.
+calibration = LegCalibration(q8)
+
+def apply_leg_design(design):
+    """Swap in a newly fitted design: solver, gait table, poses and pictures."""
+    global fitted_design, leg, sitting_pose, rearing_pose, gait_manager, pos_x, pos_y
+    leg = design.solver()
+    sitting_pose = SittingPose(leg, q8, targets=design.sitting)
+    rearing_pose = RearingPose(leg, q8, waypoints=design.rearing)
+    gait_manager = GaitManager(leg, design.gaits)
+    if not gait_manager.load_gait(gait_names[0]):
+        log.error(f"{design.title}: could not generate gait {gait_names[0]}.")
+        return
+    fitted_design = design
+    control_panel.set_design(design.key)
+    pos_x, pos_y = design.gaits[gait_names[0]][1], design.gaits[gait_names[0]][2]
+    move_xy(pos_x, pos_y, 1000)
+    log.info(f"{design.title} legs fitted.")
+    if design.key != DEFAULT_DESIGN:
+        # Stride and stance are geometry-checked against this leg's workspace,
+        # but they have not been tuned on the physical robot.
+        log.warning(f"{design.title} gait stride and height are untuned.")
+
+def advance_calibration():
+    """Enter steps through the picker and then the calibration stages."""
+    stage = calibration.stage
+    if stage == PICK:
+        if calibration.choose():
+            log.info(f"Calibrating {calibration.chosen().title} legs.")
+        else:
+            log.info(calibration.error)
+    elif stage in (CONFIRM, FAILED):
+        if calibration.confirm():
+            log.info("Driving to the mounting pose. Keep hands clear.")
+        else:
+            log.error(calibration.error)
+    elif stage == HOLD:
+        design = calibration.chosen()
+        calibration.finish()
+        apply_leg_design(design)
+
+def calibration_keys(events):
+    """Calibration owns the arrow keys and Enter while it is open."""
+    for event in events:
+        if event.type != pygame.KEYDOWN:
+            continue
+        if event.key in (pygame.K_UP, pygame.K_LEFT):
+            calibration.move_cursor(-1)
+        elif event.key in (pygame.K_DOWN, pygame.K_RIGHT):
+            calibration.move_cursor(1)
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            advance_calibration()
+
 time.sleep(2)
 
 while True:
     clock.tick(SPEED)
     events = pygame.event.get()
-    if (any(event.type == pygame.QUIT or
-            (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE)
-            for event in events) or input_handler.is_action_pressed('exit')):
+    escape_pressed = any(event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE
+                         for event in events)
+    # While calibration is open Esc cancels it instead of quitting, so a leg
+    # swap can be abandoned without dropping torque mid-sequence.
+    if calibration.active and escape_pressed:
+        calibration.cancel()
+        log.info("Leg calibration cancelled.")
+        escape_pressed = False
+    if (any(event.type == pygame.QUIT for event in events) or escape_pressed
+            or (not calibration.active and input_handler.is_action_pressed('exit'))):
         break
+
+    calibration.update()
+    if calibration.active:
+        calibration_keys(events)
+    elif input_handler.keyboard_action_pressed_once('change_legs', events):
+        if sitting_pose.blocks_movement() or rearing_pose.blocks_movement():
+            log.info("Return from the static pose before changing legs.")
+        else:
+            gait_manager.stop()
+            movement = False
+            calibration.open_picker()
 
     transition_error = rearing_pose.update()
     if transition_error:
@@ -133,6 +209,8 @@ while True:
     # Consume both keys every frame so holding either never repeats a toggle.
     sit_pressed = input_handler.keyboard_action_pressed_once('sit', events)
     rear_pressed = input_handler.keyboard_action_pressed_once('rear', events)
+    if calibration.active:
+        sit_pressed = rear_pressed = False
     if rear_pressed:
         if sitting_pose.blocks_movement():
             log.info('Press P to stand before rearing.')
@@ -169,11 +247,14 @@ while True:
     # Clear screen and render logger messages
     window.fill(eth.BACKGROUND)
     display_pose = rearing_pose if rearing_pose.blocks_movement() else sitting_pose
-    control_panel.draw(window, gait_manager.current_gait, display_pose)
+    control_panel.draw(window, gait_manager.current_gait, display_pose, calibration)
     Q8Logger.render_pygame_messages()  # Draw logger on top
     pygame.display.flip()
 
-    if sitting_pose.blocks_movement() or rearing_pose.blocks_movement():
+    if calibration.blocks_movement():
+        # Torque holds the mounting pose; nothing else may command the joints.
+        pass
+    elif sitting_pose.blocks_movement() or rearing_pose.blocks_movement():
         # Keep the static pose; battery checks and exit remain available.
         if input_handler.is_action_pressed('battery'):
             q8.check_battery()
@@ -227,7 +308,7 @@ while True:
             # Load new gait
             if gait_manager.load_gait(new_gait):
                 # Update position to match new gait
-                pos_x, pos_y = GAITS[new_gait][1], GAITS[new_gait][2]
+                pos_x, pos_y = fitted_design.gaits[new_gait][1], fitted_design.gaits[new_gait][2]
                 move_xy(pos_x, pos_y, 500)
                 log.info(f"Switched to {new_gait}")
             else:

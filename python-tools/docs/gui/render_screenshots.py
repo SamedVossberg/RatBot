@@ -21,6 +21,7 @@ import pygame
 import eth_theme as eth
 from control_panel import ControlPanel, WINDOW_SIZE
 from helpers import Q8Logger
+from leg_calibration import CONFIRM, HOLD, LegCalibration
 from rearing_pose import RearingPose
 from sitting_pose import SittingPose
 
@@ -31,10 +32,10 @@ Q8Logger.set_pygame_surface(window)
 panel = ControlPanel(ROOT / 'docs' / 'poses')
 
 
-def frame(gait, pose, messages, name):
+def frame(gait, pose, messages, name, calibration=None):
     Q8Logger._message_log = list(messages)
     window.fill(eth.BACKGROUND)
-    panel.draw(window, gait, pose)
+    panel.draw(window, gait, pose, calibration)
     Q8Logger.render_pygame_messages()
     pygame.display.flip()
     pygame.image.save(window, str(HERE / name))
@@ -54,4 +55,23 @@ frame('WALK', idle, [ready, (stamp, 'INFO', 'Switched to WALK'),
                      (stamp, 'INFO', 'Battery: 87%')], 'gui_walk.png')
 frame('TROT', sitting, [(stamp, 'INFO', 'Sitting pose')], 'gui_sitting.png')
 frame('TROT', rearing, [(stamp, 'INFO', 'Rearing pose')], 'gui_rearing.png')
+
+
+class _Bench:
+    """Stands in for the robot so the calibration screens render offline."""
+    def move_all(self, *_args, **_kwargs):
+        return True
+
+
+cal = LegCalibration(_Bench())
+cal.open_picker()
+cal.cursor = 2
+frame('TROT', idle, [(stamp, 'INFO', 'Change legs')], 'gui_legs_picker.png', cal)
+cal.choose()
+frame('TROT', idle, [(stamp, 'INFO', 'Calibrating Biomimetic legs.')],
+      'gui_legs_confirm.png', cal)
+cal.confirm()
+cal.stage = HOLD
+frame('TROT', idle, [(stamp, 'INFO', 'Driving to the mounting pose. Keep hands clear.')],
+      'gui_legs_hold.png', cal)
 pygame.quit()
