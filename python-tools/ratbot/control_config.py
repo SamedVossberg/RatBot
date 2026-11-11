@@ -12,6 +12,9 @@ from helpers import Q8Logger
 # KEYBOARD CONFIGURATION
 # =============================================================================
 
+# Held keys that turn the head; Down centres it (an action below).
+HEAD_KEYS = {'left': pygame.K_LEFT, 'right': pygame.K_RIGHT}
+
 KEYBOARD_MAPPING = {
     'movement': {
         'forward': pygame.K_w,
@@ -32,6 +35,10 @@ KEYBOARD_MAPPING = {
         'exit': pygame.K_ESCAPE,
         'record': pygame.K_z,
         'show_range': pygame.K_c,
+        'change_legs': pygame.K_l,
+        'stand': pygame.K_t,
+        'centre_head': pygame.K_DOWN,
+        'swap_head': pygame.K_y,
         'recover': pygame.K_x,
     }
 }

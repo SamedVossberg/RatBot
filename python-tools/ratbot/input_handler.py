@@ -7,6 +7,7 @@ Abstracts keyboard and joystick input into a common interface.
 
 import pygame
 from control_config import (
+    HEAD_KEYS,
     KEYBOARD_MAPPING,
     check_joystick_compatible,
     get_joystick_mapping,
@@ -86,6 +87,11 @@ class InputHandler:
             elif keys[KEYBOARD_MAPPING['movement']['forward_right']]:
                 return 'fr_0.75'  # Map to moderate forward-right turn
             return None
+
+    def head_direction(self):
+        """-1 while the left arrow is held, +1 for the right arrow, else 0."""
+        keys = pygame.key.get_pressed()
+        return int(bool(keys[HEAD_KEYS['right']])) - int(bool(keys[HEAD_KEYS['left']]))
 
     def is_movement_input(self):
         """

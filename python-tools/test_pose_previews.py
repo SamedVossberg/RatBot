@@ -1,6 +1,9 @@
 """Hardware-free checks for all gait assets and GUI selection changes."""
 import os
 os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+# Keep remembered leg designs out of the real home directory.
+import tempfile as _tempfile
+os.environ.setdefault('Q8BOT_HOME', _tempfile.mkdtemp(prefix='q8bot-test-'))
 os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 import hashlib
 import math
@@ -19,6 +22,7 @@ from control_panel import ControlPanel, WINDOW_SIZE
 from gait_manager import GAITS, GaitManager
 from input_handler import InputHandler
 from kinematics_solver import k_solver
+from leg_designs import selectable
 from pose_preview import DESCRIPTIONS, PREVIEW_SIZE, generate_previews
 from sitting_pose import SittingPose
 
@@ -44,18 +48,24 @@ class PreviewTests(unittest.TestCase):
 
     def test_assets_complete_unique_and_reproducible(self):
         self.assertEqual(set(DESCRIPTIONS), set(GAITS) | {'SITTING', 'REARING'})
+        designs = selectable()
+        self.assertTrue(designs)
         hashes = set()
-        with tempfile.TemporaryDirectory() as directory:
-            generate_previews(directory)
-            for name in DESCRIPTIONS:
-                path = ROOT / 'docs' / 'poses' / f'{name.lower()}.png'
-                actual = pygame.image.load(str(path))
-                generated = pygame.image.load(str(Path(directory) / path.name))
-                self.assertEqual(actual.get_size(), PREVIEW_SIZE)
-                pixels = pygame.image.tobytes(actual, 'RGB')
-                self.assertEqual(pixels, pygame.image.tobytes(generated, 'RGB'))
-                hashes.add(hashlib.sha256(pixels).hexdigest())
-        self.assertEqual(len(hashes), 10)
+        for design in designs:
+            with tempfile.TemporaryDirectory() as directory:
+                generate_previews(directory, design)
+                for name in DESCRIPTIONS:
+                    path = ROOT / 'docs' / 'poses' / design.asset_dir / f'{name.lower()}.png'
+                    actual = pygame.image.load(str(path))
+                    generated = pygame.image.load(str(Path(directory) / path.name))
+                    self.assertEqual(actual.get_size(), PREVIEW_SIZE, (design.key, name))
+                    pixels = pygame.image.tobytes(actual, 'RGB')
+                    self.assertEqual(pixels, pygame.image.tobytes(generated, 'RGB'),
+                                     (design.key, name))
+                    hashes.add(hashlib.sha256(pixels).hexdigest())
+        # Every picture of every design must be distinct, so no two states can
+        # be confused and no design silently reuses another's artwork.
+        self.assertEqual(len(hashes), 10 * len(designs))
 
     def test_missing_or_corrupt_pictures_fall_back_to_rendering(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -89,8 +99,8 @@ class PreviewTests(unittest.TestCase):
         seen = []
         pose = SittingPose(k_solver(), robot, lambda: frame[0] * .5)
         original_draw = ControlPanel.draw
-        def draw(panel, window, gait, sitting):
-            original_draw(panel, window, gait, sitting)
+        def draw(panel, window, gait, sitting, calibration=None, **extra):
+            original_draw(panel, window, gait, sitting, calibration, **extra)
             if not seen or seen[-1] != panel.active_preview:
                 seen.append(panel.active_preview)
         def events():
@@ -113,7 +123,7 @@ class PreviewTests(unittest.TestCase):
              patch.object(InputHandler, 'is_movement_input', return_value=False), \
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
-             patch.object(sys, 'argv', ['operate.py', 'mock-port']):
+             patch.object(sys, 'argv', ['operate.py', 'mock-port', '--legs', 'Q8']):
             runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(seen, list(GAITS) + ['TROT', 'SITTING', 'TROT'])
         robot.disable_torque.assert_called_once()
@@ -138,7 +148,7 @@ class PreviewTests(unittest.TestCase):
              patch.object(InputHandler, 'is_movement_input', return_value=True), \
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
-             patch.object(sys, 'argv', ['operate.py', 'mock-port']):
+             patch.object(sys, 'argv', ['operate.py', 'mock-port', '--legs', 'Q8']):
             runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(robot.move_all.call_count, 1)  # Sit only; no walking.
         robot.check_battery.assert_called_once()

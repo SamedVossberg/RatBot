@@ -1,6 +1,9 @@
 """Run: venv/bin/python -m unittest test_sitting_pose (from python-tools)."""
 import os
 os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+# Keep remembered leg designs out of the real home directory.
+import tempfile as _tempfile
+os.environ.setdefault('Q8BOT_HOME', _tempfile.mkdtemp(prefix='q8bot-test-'))
 os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 import runpy
 import sys
@@ -95,7 +98,7 @@ class SittingPoseTests(unittest.TestCase):
              patch.object(InputHandler, 'get_movement_direction', return_value='f'), \
              patch.object(InputHandler, 'is_action_pressed', return_value=False), \
              patch('time.sleep'), \
-             patch.object(sys, 'argv', ['operate.py', 'mock-port']):
+             patch.object(sys, 'argv', ['operate.py', 'mock-port', '--legs', 'Q8']):
             runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(calls[2], 1)
         self.assertEqual(calls[4], 1)

@@ -279,14 +279,19 @@ uint8_t q8Dynamixel::parseData(const char* myData) {
   char* token = strtok(const_cast<char*>(myData), ",");
   int index = 0;
   int check = 0;
-  
+  float fields[8] = {0};
+
   while (token != nullptr && index < 8) {  // First 8 contain joint positions
-    _posArray[index++] = _deg2Dxl(std::atof(token));
+    fields[index++] = std::atof(token);
     token = strtok(nullptr, ",");
   }
+  if (token == nullptr && _motionLocked) return 0;
   if (token != nullptr) {                  // 9th value is for special token
     _specialCmd = std::atoi(token);
     token = strtok(nullptr, ",");
+    // A leg probe owns the bus: serve battery (fuel gauge, not the servo bus)
+    // and abort only. Anything else would race the probe on the bus.
+    if (_motionLocked && _specialCmd != 1 && _specialCmd != 8) return 0;
     if (_specialCmd == 1){           // Battery
       return 1;
     } else if (_specialCmd == 2){    // Record
@@ -299,8 +304,32 @@ uint8_t q8Dynamixel::parseData(const char* myData) {
     } else if (_specialCmd == 5){    // Clear latched faults and re-enable torque
       recover();
       return 0;
+    } else if (_specialCmd == 6){    // Telemetry: read-only snapshot of all servos
+      return 6;
+    } else if (_specialCmd == 7){    // Leg probe: fields are signed sweep bounds (deg)
+      memcpy(_probeExcursion, fields, sizeof(fields));
+      _probePwm = token != nullptr ? std::atoi(token) : 0;
+      return 7;
+    } else if (_specialCmd == 8){    // Abort a running leg probe
+      return 8;
+    } else if (_specialCmd == 9){    // Output cap (Goal PWM) for normal motion
+      _capPwm = static_cast<int32_t>(fields[0]);
+      return 9;
+    } else if (_specialCmd == 10){   // Head yaw: angle (deg), move time (ms)
+      _headDeg = fields[0];
+      _headMs = token != nullptr ? static_cast<uint32_t>(std::atoi(token)) : 0;
+      return 10;
+    } else if (_specialCmd == 11){   // Head probe: signed sweep bound (deg), Goal PWM
+      memset(_probeExcursion, 0, sizeof(_probeExcursion));
+      _probeExcursion[0] = fields[0];
+      _probePwm = token != nullptr ? std::atoi(token) : 0;
+      return 11;
+    } else if (_specialCmd != 0){
+      // Unknown command: its fields are not joint angles, so never move.
+      return 0;
     }
   }
+  for (int i = 0; i < index; i++) _posArray[i] = _deg2Dxl(fields[i]);
   if (token != nullptr) {                   // 10th value is vel/acc profiles
     _profile = std::atoi(token);
     token = strtok(nullptr, ",");

@@ -1,6 +1,9 @@
 """Hardware-free rearing sequence, geometry, failure and GUI regressions."""
 import os
 os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+# Keep remembered leg designs out of the real home directory.
+import tempfile as _tempfile
+os.environ.setdefault('Q8BOT_HOME', _tempfile.mkdtemp(prefix='q8bot-test-'))
 os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
 import math
 from pathlib import Path
@@ -179,7 +182,7 @@ class RearingTests(unittest.TestCase):
              patch.object(pygame.event, 'get', side_effect=events), \
              patch.object(InputHandler, 'is_action_pressed', return_value=False), \
              patch('time.sleep'), \
-             patch.object(sys, 'argv', ['operate.py', 'mock-port']):
+             patch.object(sys, 'argv', ['operate.py', 'mock-port', '--legs', 'Q8']):
             runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(self.robot.move_all.call_count, 1)
         self.robot.disable_torque.assert_called_once()
@@ -188,8 +191,8 @@ class RearingTests(unittest.TestCase):
         self.robot.serialHandler.in_waiting = 0
         frame, pictures, counts = [0], [], {}
         original_draw = ControlPanel.draw
-        def draw(panel, window, gait, pose):
-            original_draw(panel, window, gait, pose)
+        def draw(panel, window, gait, pose, calibration=None, **extra):
+            original_draw(panel, window, gait, pose, calibration, **extra)
             pictures.append(panel.active_preview)
             if frame[0] == 8:
                 pygame.image.save(window, '/tmp/q8-rearing-gui.png')
@@ -219,7 +222,7 @@ class RearingTests(unittest.TestCase):
              patch.object(InputHandler, 'is_movement_input', return_value=True), \
              patch.object(InputHandler, 'is_action_pressed', side_effect=action), \
              patch('time.sleep'), \
-             patch.object(sys, 'argv', ['operate.py', 'mock-port']):
+             patch.object(sys, 'argv', ['operate.py', 'mock-port', '--legs', 'Q8']):
             runpy.run_path(str(ROOT / 'ratbot' / 'operate.py'), run_name='__main__')
         self.assertEqual(counts[8], 3)
         self.assertEqual(counts[12], 3)

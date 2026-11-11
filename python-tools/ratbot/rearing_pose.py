@@ -20,10 +20,14 @@ class RearingPose:
     SUPPORT_PAUSE_S = 0.2
     POSE_NAME = 'REARING'
 
-    def __init__(self, leg, robot, clock=time.monotonic):
+    def __init__(self, leg, robot, clock=time.monotonic, waypoints=None):
         self.leg = leg
         self.robot = robot
         self.clock = clock
+        # (G1, G2, G3, rearward_offset) for the fitted design. The greeting is
+        # stored as joint angles, so each design carries its own remap.
+        self.g1, self.g2, self.g3, self.rearward_offset = waypoints or (
+            list(G1), list(G2), list(G3), self.REARWARD_ANGLE_OFFSET)
         self.active = False
         self.transition_until = 0.0
         self._steps = deque()
@@ -31,19 +35,24 @@ class RearingPose:
         self._last_positions = None
 
     @classmethod
-    def target_positions(cls):
+    def target_positions(cls, waypoints=None):
         # G3 is the greeting support stance; omit its G4/G5 waving motions.
-        positions = list(G3)
-        positions[4:] = [angle - cls.REARWARD_ANGLE_OFFSET for angle in G3[4:]]
+        g3, offset = ((waypoints[2], waypoints[3]) if waypoints
+                      else (G3, cls.REARWARD_ANGLE_OFFSET))
+        positions = list(g3)
+        positions[4:] = [angle - offset for angle in g3[4:]]
         return positions
+
+    def _targets(self):
+        return self.target_positions((self.g1, self.g2, self.g3, self.rearward_offset))
 
     def toggle(self, gait_x, gait_y):
         """Start entry/exit without blocking input. Returns False on send failure."""
         if self.active:
             steps = self.lowering_steps(gait_x, gait_y)
         else:
-            steps = [(list(G1), 1000, 1.1), (list(G2), 1000, 1.1),
-                     (self.target_positions(), self.REAR_TRANSITION_MS, self.REAR_TRANSITION_MS / 1000)]
+            steps = [(list(self.g1), 1000, 1.1), (list(self.g2), 1000, 1.1),
+                     (self._targets(), self.REAR_TRANSITION_MS, self.REAR_TRANSITION_MS / 1000)]
         self._validate_steps(steps)
         positions, duration, wait = steps[0]
         if not self.robot.move_all(positions, duration, False):
@@ -66,7 +75,7 @@ class RearingPose:
         front_support = pair(self.FRONT_SUPPORT_X, self.FRONT_SUPPORT_HEIGHT)
         # Keep the most recent rear targets, including when entry was interrupted
         # or a failed descent is retried. No servo position feedback is available.
-        rear_hold = (self._last_positions or self.target_positions())[4:]
+        rear_hold = (self._last_positions or self._targets())[4:]
         return [
             (front_support * 2 + rear_hold, self.FRONT_DOWN_MS,
              self.FRONT_DOWN_MS / 1000 + self.SUPPORT_PAUSE_S),
@@ -81,6 +90,10 @@ class RearingPose:
         for positions, _, _ in steps:
             if len(positions) != 8 or not all(math.isfinite(p) for p in positions):
                 raise ValueError('Invalid rearing joint positions')
+            if not hasattr(self.leg, 'l1p'):
+                # Closure below is specific to the five-bar; other leg designs
+                # carry their own reach limits inside ik_solve.
+                continue
             for index in range(0, 8, 2):
                 q1, q2 = map(math.radians, positions[index:index+2])
                 dx = self.leg.d + self.leg.l1 * math.cos(q1) - self.leg.l1p * math.cos(q2)

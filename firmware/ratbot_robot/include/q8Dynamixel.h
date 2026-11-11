@@ -33,6 +33,15 @@ class q8Dynamixel
     uint8_t reportFaults();
     void recover();
     uint8_t parseData(const char* myData);
+    // While a leg probe owns the servo bus, parseData serves only battery and
+    // abort requests; every other packet is dropped without touching the bus.
+    void lockMotion(bool locked) { _motionLocked = locked; }
+    bool motionLocked() const { return _motionLocked; }
+    const float* probeExcursion() const { return _probeExcursion; }
+    int32_t probePwm() const { return _probePwm; }
+    int32_t capPwm() const { return _capPwm; }
+    float headDeg() const { return _headDeg; }
+    uint32_t headMs() const { return _headMs; }
 
   private:
     Dynamixel2Arduino& _dxl; // Member variable to store the object of Dynamixel2Arduino
@@ -63,6 +72,12 @@ class q8Dynamixel
     bool _torqueFlag = false;
     bool _prevTorqueFlag = false;
     uint8_t _specialCmd = 0;
+    volatile bool _motionLocked = false;
+    float _probeExcursion[8] = {0};
+    int32_t _probePwm = 0;
+    int32_t _capPwm = 0;
+    float _headDeg = 0;
+    uint32_t _headMs = 0;
     int32_t _deg2Dxl(float deg);
     float _dxl2Deg(int32_t dxlRaw);
     void expandArrays();
