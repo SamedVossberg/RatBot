@@ -40,6 +40,8 @@ struct FakeDxl {
   std::vector<Write> writes;
   int lastError = 0, failedItem = -1;
   bool lostChangeAck = false;
+  bool follow = false;  // Servos under torque reach a new goal at once.
+  bool twoNew = false;  // A second factory-new servo (ID 1) answers at every speed.
   FakeDxl() {
     for (uint8_t id = 11; id <= 17; ++id) {
       Device d; d.baud = 1000000; d.values[ID] = id; d.values[BAUD_RATE] = 3;
@@ -49,7 +51,9 @@ struct FakeDxl {
     devices[1] = Device{};
   }
   void begin(uint32_t value) { baud = value; }
-  bool ping(uint8_t id) { return devices.count(id) && devices.at(id).baud == baud; }
+  bool ping(uint8_t id) {
+    return (twoNew && id == 1) || (devices.count(id) && devices.at(id).baud == baud);
+  }
   int32_t readControlTableItem(uint8_t item, uint8_t id, uint32_t) {
     lastError = ping(id) ? 0 : 3;
     return lastError ? 0 : devices.at(id).values[item];
@@ -66,6 +70,7 @@ struct FakeDxl {
     if (item == ID) { devices.erase(id); devices[static_cast<uint8_t>(value)] = d; }
     else {
       if (item == BAUD_RATE) d.baud = value == 3 ? 1000000 : 57600;
+      if (follow && item == GOAL_POSITION && d.values[TORQUE_ENABLE] == 1) d.values[PRESENT_POSITION] = value;
       devices[id] = d;
     }
     lastError = lostChangeAck && (item == ID || item == BAUD_RATE) ? 3 : 0;

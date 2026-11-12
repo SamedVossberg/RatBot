@@ -1,119 +1,154 @@
-# SQuRo head and leg bench alignment
+# RatBot assembly: servos, head and biomimetic legs
 
-Use `assemble_squro` after head configuration. It moves one selected leg pair
-or the head, with no automatic movement, EEPROM changes or broadcast torque-on.
-The `config_head` environment remains configuration-only.
+The `assemble_squro` firmware and the guided console `tools/assembly_console.py`
+take a fresh build to four fitted SQuRo legs: a new PCB, new or reused servos,
+and the body as in the RatBot STL files, **batteries facing down**. The guide
+explains every step on screen and waits for you; the firmware makes every
+safety check and never moves anything on its own.
 
-All four SQuRo legs were fitted with this tool: head and front pairs on
-2026-10-01, hind pairs on 2026-10-12 (see `results/`). The host GUI still
-repeats the front model across all four legs, so it is neither a rear assembly
-tool nor safe for operating a robot with hind legs fitted.
+## Quick start
 
-## Front mounting reference
+1. Assemble frame, PCB and batteries with the batteries facing down. Put the
+   head servo in the neck clamp. **No cranks or leg parts on any servo yet.**
+2. Battery off, robot USB connected, then upload:
+   `pio run -e assemble_squro -t upload --upload-port <robot USB port>`
+3. Battery on, close any other serial monitor, and start the guide with
+   PlatformIO's Python (it has pyserial):
+   `~/.platformio/penv/bin/python tools/assembly_console.py --port <robot USB port>`
+4. Follow the guide. Answer `q` at any question to stop; the console releases
+   every servo when it closes and tells you which step to resume with
+   `--start` (`prepare`, `servos`, `head`, `FL`, `FR`, `BL`, `BR`, `check`).
+   Everything is logged to `results/<date>/assembly.log`.
 
-The user confirmed that ID11 is the front-left servo nearest the nose on
-2026-10-01. A read-only inspection of the open `Q8bot_rev2_5_SQuRo_Leg` CAD
-confirmed the front elbow/humerus pivot at world x −50 mm and shoulder pivot
-at −30.5 mm. The head lies farther forward, at −78 mm.
+Directions are the robot's own: **nose** is the head end, **left** and
+**right** as seen from behind with the head pointing away from you. `_N`
+parts go on the left, `_P` parts on the right.
 
-| Front-left location | Part / function | Angle | Goal ticks |
-|---|---|---:|---:|
-| ID11, nearest nose | Elbow crank, B; humerus pivots around the same axis | 52.660° | 4695 |
-| ID12, nearer body centre | Shoulder crank, A | 129.021° | 5564 |
+## What the guide does
 
-Angles are measured from a horizontal line toward the nose, positive downward.
-At this reference the shoulder crank and humerus point rearward/downward;
-the elbow crank points forward/downward. The front foot is the round-pad
-`SQ3_UlnaFoot`, not the pointed hind foot. The front-right pair uses the mirrored
-parts and the same tick references; first verify that ID13 is nearest the nose
-and ID14 nearer the body centre.
+| Step | What happens |
+|---|---|
+| Servo setup | Every ID 11–19 gets its settings (`SETUP`). A missing ID is a factory-new servo, plugged in on its own; a reused servo is checked and corrected. Then, for each place, you **turn that horn by hand** about a quarter turn, top toward the nose, with torque off. The position readings show which servo it is and that it counts the right way. Reused servos keep the ID of the place they had in the old build, so after turning the body over many sit at another ID's place. The guide **renumbers** those over the bus (`MOVEID`, via a temporary ID 21–29): nothing is unplugged. |
+| Head | Centres servo 19 (`CENTERHEAD`) and holds it while the head goes on, looking straight ahead. |
+| Each leg (FL, FR, BL, BR) | Lists the parts, drives the pair to its mounting pose and holds it while you fit **the two cranks only**. It then releases the servos and lists the rest of the leg: humerus or femur, ulna, and the pushrods last. |
+| Final check | With the legs hanging, it compares every left joint with its right partner. A crank one screw hole off shows up as about 90°. |
 
-## Rear mounting reference
+If a bare horn sits too far round for the firmware to move it, the guide shows
+which way to turn it by hand and counts down the degrees until it is in range.
 
-Same servo convention as the front: the servo of each pair nearer the nose
-carries the elbow crank and is the femur pivot (B); the one nearer the tail
-carries the shoulder crank (A). Confirmed physically for both hind pairs on
-2026-10-12. The pose differs: the hind femur slopes forward where the front
-humerus slopes back.
+## The body the other way up
 
-| Hind-left location | Part / function | Angle | Goal ticks |
-|---|---|---:|---:|
-| ID15, nearer nose | Elbow crank, B; femur pivots around the same axis | −41.286° | 3627 |
-| ID16, nearer tail | Shoulder crank, A; parallel to the femur | +57.000° | 4745 |
+No servo setting or mounting target changes with the batteries facing down.
+Each ID is defined by its **place on the robot**, not by a PCB slot:
 
-At this reference the elbow crank points toward the nose and up; the shoulder
-crank and femur point toward the nose and down. The hind-right pair (ID17/18)
-uses the mirrored `_N` parts and the same ticks. Angles are from the CAD
-(`results/2026-10-01/cad-crank-references.json`). The hind foot is the pointed
-`SQ4_UlnaFootHind`.
+| ID | Place | Drive mode | Homing offset | Carries | Mounting pose |
+|---|---|:---:|---:|---|---|
+| 11 | front-left, nearest the nose | 4 | +2048 | elbow crank | 4695 ticks, 52.660° |
+| 12 | front-left, nearer the middle | 4 | +4096 | shoulder crank | 5564 ticks, 129.021° |
+| 13 | front-right, nearest the nose | 5 | −2048 | elbow crank | 4695 ticks, 52.660° |
+| 14 | front-right, nearer the middle | 5 | −4096 | shoulder crank | 5564 ticks, 129.021° |
+| 15 | hind-left, nearer the middle | 4 | +2048 | elbow crank, femur pivot | 3627 ticks, −41.286° |
+| 16 | hind-left, nearest the tail | 4 | +4096 | shoulder crank | 4745 ticks, +57.000° |
+| 17 | hind-right, nearer the middle | 5 | −2048 | elbow crank, femur pivot | 3627 ticks, −41.286° |
+| 18 | hind-right, nearest the tail | 5 | −4096 | shoulder crank | 4745 ticks, +57.000° |
+| 19 | head, neck clamp | 4 | +2048 | head | 4096 ticks, centre |
 
-A rear move larger than 2048 ticks (180°) is refused. A detached hind horn can
-sit just beyond that: ID16 read 6877 against 4745 on 2026-10-12. Turning the
-bare horn by hand into range (clockwise seen from the robot's left lowers
-ID16's reading) avoids a rebuild.
+Angles are from the nose direction, positive downward, as the robot firmware
+and the GUI use them. Every horn faces outward, so left servos count normally
+and right servos reversed, and on both sides a positive angle turns a crank
+from the nose toward the floor. Turning the body over changes which PCB slot
+ends up nearest the nose on the left. The settings for that place stay the
+same, because the old table was mirror-symmetric left/right and the servo
+slots point-symmetric front/back. Fitting each crank at the commanded pose
+also absorbs any constant offset. What the flip *can* break is a servo
+plugged into the slot the old Q8bot instructions named ("front left
+vertical"), or a reused servo left in its old slot: that slot is no longer the
+same place. Locating every servo by hand catches that, and a reversed
+direction, before any crank goes on, and renumbering fixes it.
 
-## Bench sequence
+Where the cranks point at the mounting pose, seen from the side:
 
-1. Support the robot and head. Keep the leg linkages detached. Switch battery
-   power off, leave robot USB connected, and close any other serial console.
-2. Upload `pio run -e assemble_squro -t upload --upload-port <robot USB port>`.
-3. Run the console with the PlatformIO Python (which has pyserial):
-   `python tools/assembly_console.py --port <robot USB port> --log results/<session>/assembly.log`.
-   It sends a heartbeat once per second; it never initiates movement itself.
-4. Switch battery power on. Use `STATUS` and `LEGS` to inspect all nine servos.
-5. With the head path clear, `CENTERHEAD` commands ID19 to 4096 ticks over five
-   seconds, only if its initial position is within 256 ticks (22.5°) of zero.
-   Wait for `ASSEMBLY READY` and inspect physical forward alignment. `RELEASE`
-   turns torque off before proceeding to the legs. A head horn mounting error
-   is not resolved merely by reaching 4096 ticks.
-6. After confirming the front-left mapping and with hands clear, `ALIGNFL`
-   commands ID11/ID12 to 4695/5564 over five seconds. A move exceeding 1536 ticks
-   (135°) from either current position is refused.
-7. Wait for **measured** `ASSEMBLY READY`, then fit the front-left cranks and
-   linkage to the CAD reference. Fit the pushrods last and check that both
-   parallelograms close without forcing a part. The outputs hold for at most
-   five minutes. Stop on any disturbance or loss of torque; re-establish and
-   verify the reference before continuing attachment.
-8. `RELEASE` or `!` releases the selected pair. Verify release, then repeat with
-   `ALIGNFR` only after checking the front-right mapping.
-9. For the hind legs, confirm that ID15/ID17 are the servos nearer the nose,
-   then use `ALIGNBL` / `ALIGNBR` the same way. `LEGS` first: each hind servo
-   must be within 2048 ticks of its target or the command is refused.
+| Leg | Elbow crank | Shoulder crank |
+|---|---|---|
+| Front (ID11/13, ID12/14) | forward and down, 53° below horizontal | backward and down, 51° below horizontal |
+| Hind (ID15/17, ID16/18) | forward and up, 41° above horizontal | forward and down, 57° below horizontal |
 
-The 32-tick hold guard tripped while fitting each of the four legs. Fitting
-order and seating still decide the keying: a crank fitted through the wrong
-screw-hole position shows up as a leg at least 90° off its mirror partner in a
-read-only `LEGS` comparison.
+The front foot is the round-pad `SQ3_UlnaFoot`, the hind foot the pointed
+`SQ4_UlnaFootHind`. All four legs use the same five links otherwise. The
+offsets put each servo's power-up reading in a window, [2048, 6143] for ±2048
+and [4096, 8191] for ±4096, and every mounting target lies inside its window.
+The CAD angles and pivot positions are in
+[cad-crank-references.json](results/2026-10-01/cad-crank-references.json).
 
-Only `KEEP`, `RELEASE`, and `!` are accepted during movement/hold. Full scans
-are blocked to preserve telemetry polling. Loss of heartbeat for 10 seconds,
-failure to settle within eight seconds, or a five-minute hold timeout releases
-the selected outputs. MCU startup individually releases any responding ID11–19.
+## Commands
+
+The guide sends these. `--manual` gives the raw console, which accepts only
+these commands.
+
+| Command | Effect |
+|---|---|
+| `SCAN` | Read-only. One line: each ID 11–19 `ok` (configured for its place), `bad` (answers, wrong settings) or `--`, plus `new=` the number of factory-new servos (ID 1) and `temp=` any servo left on a temporary ID 21–29. |
+| `POS` | Read-only. Present positions of IDs 11–19 in ticks. |
+| `SETUP <11-19>` | Configures the one factory-new servo on the bus (ID 1, 57600 or 1 Mbps) as that ID. If that ID already answers, it checks the servo and corrects drive mode, operating mode and offset. Writes to no other servo and never enables torque. Parks the goal at the present position. |
+| `MOVEID <from> <to>` | Renames one servo, IDs 11–19 or 21–29, only onto a free ID. Writes torque-off (if needed) and the ID, nothing else; `SETUP` then gives it the settings of its new place. |
+| `WIGGLE <11-19>` | One configured servo: +256 ticks (22.5°) and back at Goal PWM 133, then released and restored. A failure prints what stopped it. Refused while an alignment is active. Manual use only. |
+| `CENTERHEAD` | ID19 to 4096 ticks over five seconds, then hold. |
+| `ALIGNFL`, `ALIGNFR`, `ALIGNBL`, `ALIGNBR` | That leg pair to its mounting pose over five seconds, then hold. |
+| `STATUS`, `LEGS` | Read-only head and leg inventories. |
+| `KEEP` | Heartbeat. The console sends it every second. |
+| `RELEASE`, `!` | Torque off, then profiles and output restored. |
+
+Only `KEEP`, `RELEASE` and `!` are accepted while a pose is moving or held.
 
 ## Limits and verification
 
-All nine servos must have the expected model/calibration, torque off, watchdog 0,
-no hardware errors, 3.5–5.5 V, and temperature below 45 °C before starting.
-Head Goal PWM is capped at 133 (about 15% duty); front servos at 266 (about 30%),
-or any lower existing Goal PWM / PWM Limit. These are output caps, not current
-limits. Sampled current above ±150 mA for the head or ±250 mA for front servos
-causes release, as do failed telemetry reads, unexpected position, lost torque,
-temperature/voltage faults or excess PWM. These thresholds are conservative
-bench choices, not manufacturer operating limits.
+`CENTERHEAD` and `ALIGNxx` need all nine servos configured for their place,
+torque off, watchdog 0, no hardware errors, 3.5–5.5 V and below 45 °C. A move is
+refused when a bare horn starts more than 256 ticks (head), 1536 (front) or
+2048 (hind) from its target; the guide then has it turned by hand. Head Goal
+PWM is capped at 133 (about 15 % duty), legs at 266 (about 30 %), or any lower
+existing Goal PWM / PWM Limit. These are output caps, not current limits.
+Sampled current above ±150 mA for the head or ±250 mA for a leg servo causes
+release, as do failed telemetry reads, unexpected position, lost torque,
+temperature or voltage faults, and excess PWM. The same current limits apply
+to `WIGGLE`. These thresholds are conservative bench choices, not manufacturer
+operating limits.
 
-Targets must settle within six ticks for 200 ms after the move time. More than
-32 ticks of disturbance during hold causes release. Profiles and Goal PWM are
-restored only after **every selected servo** is confirmed torque-off. Failed
-release/restoration blocks subsequent movement until corrected. `RELEASE` can
-be retried; an unconfirmed torque-off requires battery power off.
+Targets must settle within 23 ticks (2°) for 200 ms after the move time. At
+its 15 % cap the head servo's own controller stalls about 9 ticks short
+against the neck's friction; a degree does not matter, since horns take the
+cranks and the head in 90° steps. During
+the hold, more than 128 ticks (11°) of disturbance causes release. The earlier
+32-tick guard tripped while fitting every leg, because screwing a crank down
+nudges the horn by up to about 4°. Loss of heartbeat for 10 seconds, failure to
+settle within eight seconds, or the five-minute hold limit also releases.
+Profiles and Goal PWM are restored only after every selected servo is
+confirmed torque-off. A failed release or restoration blocks every further
+movement, `SETUP` and `MOVEID` until `RELEASE` succeeds; an unconfirmed torque-off needs
+the battery switched off. MCU startup releases any responding ID 11–19.
 
-The routine parks each selected goal at its measured position before torque-on,
-then writes its mounting goal. It does not restore old goal positions. Servo
-power cycles and hand movement can invalidate parked goals, so normal robot
-startup/torque behavior still needs checking before operating the assembled robot.
+`SETUP` reads back every value it writes, including at the new ID and speed.
+Repeating it recovers an interrupted ID or speed change. The routine parks
+each goal at its measured position before torque-on and does not restore old
+goal positions.
 
 Register interpretation: [ROBOTIS XL330-M077 manual](https://emanual.robotis.com/docs/en/dxl/x/xl330-m077/).
 
-Host verification:
-`c++ -std=c++17 -Wall -Wextra tests/test_squro_assembly.cpp -o /tmp/q8-squro-test && /tmp/q8-squro-test`.
+Host checks, from this folder:
+
+```bash
+for t in test_servo_setup test_squro_assembly test_head test_replacement test_alignment; do
+  c++ -std=c++17 -Wall -Wextra tests/$t.cpp -o /tmp/$t && /tmp/$t
+done
+python3 -m unittest discover -s tools -p 'test_*.py'
+```
+
 Firmware build: `pio run -e assemble_squro`.
+
+## Earlier sessions
+
+The first robot was assembled with the earlier body orientation and the
+bench-only version of this tool: the head and front pairs on 2026-10-01, the
+hind pairs on 2026-10-12. Those sessions established the mapping that the
+table above keeps: the elbow crank on the servo of each pair nearer the nose.
+Their notes and serial logs are in [`results/`](results).

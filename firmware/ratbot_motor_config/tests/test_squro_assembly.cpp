@@ -1,6 +1,7 @@
 #define Q8_ALIGNMENT_TEST
 #include "test_replacement.cpp"
 #include "../src/head_config.h"
+#include "../src/servo_setup.h"
 #include "../src/squro_assembly.h"
 
 namespace A = SquroAssembly;
@@ -55,6 +56,7 @@ void advance(bool track, int milliseconds) {
     A::tick();
   }
 }
+#ifndef Q8_SETUP_TEST
 int main() {
   for (uint8_t first : {11,13,15,17,19}) {
     prepare(); A::begin(first); assert(A::active);
@@ -81,6 +83,19 @@ int main() {
   prepare(); command("CENTERHEAD\n"); delay(A::KEEP_MS); A::tick(); off(19);
   prepare(); command("ALIGNFR\n"); advance(false, 8100); off(13);
   assert(Serial.output.find("targets not reached") != std::string::npos);
+  // A servo whose own controller stalls short of the goal against friction,
+  // like the head on 2026-11-11 (9 ticks), is close enough...
+  prepare(); command("CENTERHEAD\n");
+  dxl.devices[19].values[PRESENT_POSITION] = 4096 - 9; advance(false, 5500);
+  assert(A::active && A::holding); command("RELEASE\n"); off(19);
+  // ...one more than 2 deg short is not.
+  prepare(); command("CENTERHEAD\n");
+  dxl.devices[19].values[PRESENT_POSITION] = 4096 - A::SETTLE_TICKS - 1; advance(false, 8100); off(19);
+  assert(Serial.output.find("targets not reached") != std::string::npos);
+  // A failed preparation write names the register.
+  prepare(); dxl.failedItem = PROFILE_VELOCITY; A::begin(19); dxl.failedItem = -1;
+  assert(Serial.output.find("failed: ID19 Profile Velocity.") != std::string::npos);
+  if (A::pendingRestore || A::blocked) A::release();
 
   for (auto invalid : std::vector<std::pair<int,int>>{{HARDWARE_ERROR_STATUS,32},
       {PRESENT_CURRENT,251}, {PRESENT_CURRENT,-251}, {PRESENT_PWM,267},
@@ -91,8 +106,12 @@ int main() {
   }
   prepare(); A::begin(19); dxl.devices[19].values[PRESENT_CURRENT] = 151;
   delay(50); A::tick(); off(19);
+  // Screwing a crank down nudges the horn: that is held through, a real
+  // disturbance is not.
   prepare(); A::begin(11); advance(true, 5500);
-  dxl.devices[12].values[PRESENT_POSITION] += 33;
+  dxl.devices[12].values[PRESENT_POSITION] += 44;
+  advance(false, 1000); assert(A::active && A::holding);
+  dxl.devices[12].values[PRESENT_POSITION] += A::HOLD_GUARD - 44 + 1;
   delay(50); A::tick(); off(11);
 
   for (uint8_t id = 11; id <= 19; ++id) {
@@ -158,3 +177,4 @@ int main() {
   assert(dxl.devices[19].values[TORQUE_ENABLE] == 0);
   puts("SQuRo assembly checks passed: scoped RAM moves, goal-before-torque, tracking, aborts, timeouts, release failures and command parser.");
 }
+#endif

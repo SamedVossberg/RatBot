@@ -1,5 +1,9 @@
 # Configuring the daisy-chained head servo (ID 19)
 
+For a fresh build, the guided [RatBot assembly](ASSEMBLE_SQURO.md) configures
+the head along with every other servo (`SETUP 19`). This page covers adding
+a head to a robot whose leg servos are already set up.
+
 The `config_head` PlatformIO environment configures the head XL330-M077-T
 (model 1190) as **ID 19**, while leaving IDs 11–18 untouched. It contains no
 torque-on and no position commands. Use it when the eight leg motors are

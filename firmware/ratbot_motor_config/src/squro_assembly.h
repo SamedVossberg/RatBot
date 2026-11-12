@@ -1,15 +1,28 @@
 #pragma once
 
-// Commanded bench alignment, one detached leg pair or the head at a time.
-// No EEPROM writes, broadcast torque or wireless input.
+// Commanded bench alignment, one detached leg pair or the head at a time, and
+// a short identification wiggle of one servo. No EEPROM writes (those are
+// ServoSetup's), broadcast torque or wireless input.
 namespace SquroAssembly {
 constexpr uint32_t MOVE_MS = 5000, HOLD_MS = 300000, KEEP_MS = 10000;
+// CAD angles from the nose direction, positive downward, converted like the
+// robot firmware: int(deg*4096/360+0.5)+4096. Front: elbow crank 52.660 deg,
+// shoulder crank 129.021 deg. Hind: elbow -41.286 deg, shoulder +57.000 deg.
 constexpr int32_t FRONT_TARGETS[] = {4695, 5564};
-// Rear CAD angles: elbow -41.286 deg, shoulder +57.000 deg, in the same
-// nose/down frame. Match the existing robot's int(deg*4096/360+0.5)+4096.
 constexpr int32_t REAR_TARGETS[] = {3627, 4745};
-constexpr int32_t OFFSETS[] = {2048, 4096, -2048, -4096, 2048, 4096, -2048, -4096, 2048};
-constexpr int32_t DRIVES[] = {4, 4, 5, 5, 4, 4, 5, 5, 4};
+constexpr int32_t HEAD_TARGET = 4096;
+// Largest move from where a bare horn happens to sit; turn it by hand first.
+constexpr int32_t FRONT_TRAVEL = 1536, REAR_TRAVEL = 2048, HEAD_TRAVEL = 256;
+// Hold disturbance before release. 32 ticks tripped while fitting every leg
+// in October 2026; screwing a crank down nudges the horn by up to ~4 deg.
+constexpr int32_t HOLD_GUARD = 128;
+// "Reached" means within 2 deg for 200 ms. At the 15 % head cap the servo's own
+// controller stalls ~9 ticks short against the neck's friction (2026-11-11);
+// a degree does not matter, as horns take cranks and the head in 90 deg steps.
+constexpr int32_t SETTLE_TICKS = 23;
+// Identification wiggle: +22.5 deg and back at 15 % output.
+constexpr int32_t WIGGLE_TICKS = 256, WIGGLE_PWM = 133;
+constexpr uint32_t WIGGLE_MS = 400;
 struct Motor {
   uint8_t id = 0;
   int32_t target = 0, start = 0, cap = 0, oldPwm = 0, oldDuration = 0, oldAccel = 0;
@@ -33,12 +46,20 @@ bool torqueOff(uint8_t id) {
   return false;
 }
 
+// Torque off on every servo that answers: IDs 11-19 and the temporary IDs
+// 21-29 of a renumbering. A servo that does not answer is not holding.
+bool releaseAll() {
+  dxl.begin(HeadConfig::FINAL_BAUD);
+  bool off = true;
+  for (uint8_t id = 11; id <= 29; ++id) {
+    if (id != 20 && dxl.ping(id)) off = torqueOff(id) && off;
+  }
+  return off;
+}
+
 // At MCU restart, release any powered servo left holding by the previous run.
 void startupRelease() {
-  dxl.begin(HeadConfig::FINAL_BAUD);
-  for (uint8_t id = 11; id <= 19; ++id) {
-    if (dxl.ping(id) && !torqueOff(id)) blocked = true;
-  }
+  if (!releaseAll()) blocked = true;
 }
 
 bool ramWrite(Motor& m, uint8_t item, int32_t value) {
@@ -58,9 +79,10 @@ void release() {
   bool off = true;
   if (count) {
     // Attempt both even if the first fails. Restore nothing until both are off.
+    // A selected servo that stops answering is not confirmed off.
     for (uint8_t i = 0; i < count; ++i) off = torqueOff(motors[i].id) && off;
   } else {
-    for (uint8_t id = 11; id <= 19; ++id) off = torqueOff(id) && off;
+    off = releaseAll();
   }
   if (!off) { blocked = true; return; }
   bool restored = true;
@@ -79,16 +101,8 @@ void release() {
 }
 
 bool preflight() {
-  dxl.begin(HeadConfig::FINAL_BAUD);
   for (uint8_t id = 11; id <= 19; ++id) {
-    int32_t voltage, temperature;
-    if (!matches(MODEL_NUMBER, id, HeadConfig::MODEL) || !matches(ID, id, id) ||
-        !matches(BAUD_RATE, id, 3) || !matches(OPERATING_MODE, id, 4) ||
-        !matches(DRIVE_MODE, id, DRIVES[id - 11]) ||
-        !matches(HOMING_OFFSET, id, OFFSETS[id - 11]) ||
-        !matches(TORQUE_ENABLE, id, 0) || !matches(HARDWARE_ERROR_STATUS, id, 0) ||
-        !matches(BUS_WATCHDOG, id, 0) || !read(PRESENT_INPUT_VOLTAGE, id, voltage) ||
-        voltage < 35 || voltage > 55 || !read(PRESENT_TEMPERATURE, id, temperature) || temperature >= 45) {
+    if (!ServoSetup::configured(id)) {
       Serial.printf("ASSEMBLY REFUSED: ID%u configuration, torque, communication or health check failed.\n", id);
       return false;
     }
@@ -107,11 +121,11 @@ void begin(uint8_t firstId) {
     Motor& m = motors[i];
     m = Motor{}; m.id = firstId + i;
     bool rear = firstId == 15 || firstId == 17;
-    m.target = firstId == 19 ? 4096 : (rear ? REAR_TARGETS[i] : FRONT_TARGETS[i]);
+    m.target = firstId == 19 ? HEAD_TARGET : (rear ? REAR_TARGETS[i] : FRONT_TARGETS[i]);
     int32_t pwmLimit;
     // The detached rear outputs can start nearly half a turn from their CAD
     // reference (ID16 measured 6688 ticks). Refuse more than one half-turn.
-    const int32_t travel = firstId == 19 ? 256 : (rear ? 2048 : 1536);
+    const int32_t travel = firstId == 19 ? HEAD_TRAVEL : (rear ? REAR_TRAVEL : FRONT_TRAVEL);
     if (!read(PRESENT_POSITION, m.id, m.start) ||
         m.start < m.target - travel || m.start > m.target + travel ||
         !read(GOAL_PWM, m.id, m.oldPwm) || m.oldPwm <= 0 ||
@@ -130,15 +144,22 @@ void begin(uint8_t firstId) {
   active = true; holding = false; settledSince = 0;
   for (uint8_t i = 0; i < count; ++i) {
     Motor& m = motors[i];
-    if (!ramWrite(m, GOAL_PWM, m.cap) || !ramWrite(m, PROFILE_VELOCITY, MOVE_MS) ||
-        !ramWrite(m, PROFILE_ACCELERATION, MOVE_MS / 4) || !ramWrite(m, GOAL_POSITION, m.start)) {
-      Serial.println("ASSEMBLY ABORT: preparation write/readback failed."); release(); return;
+    const char* failed = !ramWrite(m, GOAL_PWM, m.cap) ? "Goal PWM" :
+                         !ramWrite(m, PROFILE_VELOCITY, MOVE_MS) ? "Profile Velocity" :
+                         !ramWrite(m, PROFILE_ACCELERATION, MOVE_MS / 4) ? "Profile Acceleration" :
+                         !ramWrite(m, GOAL_POSITION, m.start) ? "Goal Position (park)" : nullptr;
+    if (failed) {
+      Serial.printf("ASSEMBLY ABORT: preparation write/readback failed: ID%u %s.\n", m.id, failed);
+      release(); return;
     }
   }
   for (uint8_t i = 0; i < count; ++i) {
     Motor& m = motors[i];
-    if (!ramWrite(m, TORQUE_ENABLE, 1) || !ramWrite(m, GOAL_POSITION, m.target)) {
-      Serial.println("ASSEMBLY ABORT: torque/goal write/readback failed."); release(); return;
+    const char* failed = !ramWrite(m, TORQUE_ENABLE, 1) ? "Torque Enable" :
+                         !ramWrite(m, GOAL_POSITION, m.target) ? "Goal Position" : nullptr;
+    if (failed) {
+      Serial.printf("ASSEMBLY ABORT: torque/goal write/readback failed: ID%u %s.\n", m.id, failed);
+      release(); return;
     }
     Serial.printf("ASSEMBLY MOVING ID%u: %ld -> %ld ticks over 5 seconds, PWM cap %ld.\n",
                   m.id, static_cast<long>(m.start), static_cast<long>(m.target), static_cast<long>(m.cap));
@@ -169,7 +190,7 @@ void tick() {
     int32_t error = position > m.target ? position - m.target : m.target - position;
     if (!ok || position < low || position > high || current < -maxCurrent || current > maxCurrent ||
         pwm < -m.cap || pwm > m.cap || voltage < 35 || voltage > 55 || temperature >= 45 ||
-        torque != 1 || (holding && error > 32)) {
+        torque != 1 || (holding && error > HOLD_GUARD)) {
       Serial.printf("ASSEMBLY ABORT: ID%u telemetry/read check failed.\n", m.id);
       release();
       Serial.printf("  read_ok=%u pos=%ld target=%ld current_mA=%ld pwm=%ld voltage_0.1V=%ld temp=%ld torque=%ld fault=%ld\n",
@@ -178,7 +199,7 @@ void tick() {
                     static_cast<long>(temperature), static_cast<long>(torque), static_cast<long>(fault));
       return;
     }
-    if (error > 6) settled = false;
+    if (error > SETTLE_TICKS) settled = false;
     if (log) Serial.printf("ASSEMBLY %s ID%u pos=%ld current_mA=%ld pwm=%ld voltage=%.1f temp=%ld\n",
                           holding ? "holding" : "moving", m.id, static_cast<long>(position),
                           static_cast<long>(current), static_cast<long>(pwm), voltage * 0.1,
@@ -197,6 +218,108 @@ void tick() {
       Serial.println("ASSEMBLY ABORT: targets not reached in time."); release();
     }
   }
+}
+
+// Waits for the wiggling servo to reach goal, checking it every 50 ms.
+bool waitFor(const Motor& m, int32_t goal) {
+  const int32_t maxCurrent = m.id == 19 ? 150 : 250;
+  int32_t position = 0, current = 0, torque = 0, fault = 0;
+  const char* why = "goal not reached in time";
+  for (uint32_t waited = 50; waited <= WIGGLE_MS + 800; waited += 50) {
+    delay(50);
+    const bool ok = read(HARDWARE_ERROR_STATUS, m.id, fault) && read(PRESENT_POSITION, m.id, position) &&
+                    read(PRESENT_CURRENT, m.id, current) && read(TORQUE_ENABLE, m.id, torque);
+    if (!ok) why = "read failed";
+    else if (fault != 0) why = "hardware error";
+    else if (torque != 1) why = "torque dropped";
+    else if (current < -maxCurrent || current > maxCurrent) why = "current limit";
+    else if (position < m.start - 64 || position > m.target + 64) why = "position out of range";
+    else {
+      const int32_t error = position > goal ? position - goal : goal - position;
+      if (waited >= WIGGLE_MS && error <= 12) return true;
+      continue;
+    }
+    break;
+  }
+  Serial.printf("WIGGLE ID%u stopped: %s. pos=%ld goal=%ld start=%ld current_mA=%ld torque=%ld fault=%ld\n",
+                m.id, why, static_cast<long>(position), static_cast<long>(goal), static_cast<long>(m.start),
+                static_cast<long>(current), static_cast<long>(torque), static_cast<long>(fault));
+  return false;
+}
+
+// Identification: one configured servo turns +22.5 deg and back at 15 %
+// output, then releases. The top of an outward-facing horn moves towards the
+// nose first, on either side, which checks place and direction together.
+// Blocks for about two seconds; start it only with the horn free.
+bool wiggle(uint8_t id) {
+  if (active || pendingRestore || blocked) {
+    Serial.println("WIGGLE REFUSED: RELEASE the current alignment first.");
+    return false;
+  }
+  if (id < 11 || id > 19) return false;
+  if (!ServoSetup::configured(id)) {
+    Serial.printf("WIGGLE FAIL ID%u: not configured for its place, or a torque/health check failed.\n", id);
+    return false;
+  }
+  Motor& m = motors[0];
+  m = Motor{}; m.id = id;
+  int32_t pwmLimit;
+  if (!read(PRESENT_POSITION, id, m.start) || !read(GOAL_PWM, id, m.oldPwm) || m.oldPwm <= 0 ||
+      !read(PWM_LIMIT, id, pwmLimit) || pwmLimit <= 0 ||
+      !read(PROFILE_VELOCITY, id, m.oldDuration) || !read(PROFILE_ACCELERATION, id, m.oldAccel)) {
+    Serial.printf("WIGGLE FAIL ID%u: could not read its settings.\n", id);
+    return false;
+  }
+  m.target = m.start + WIGGLE_TICKS;
+  m.cap = WIGGLE_PWM;
+  if (m.oldPwm < m.cap) m.cap = m.oldPwm;
+  if (pwmLimit < m.cap) m.cap = pwmLimit;
+  count = 1;
+  pendingRestore = true;
+  Serial.printf("WIGGLE ID%u: +22.5 deg and back.\n", id);
+  const bool moved = ramWrite(m, GOAL_PWM, m.cap) && ramWrite(m, PROFILE_VELOCITY, WIGGLE_MS) &&
+                     ramWrite(m, PROFILE_ACCELERATION, WIGGLE_MS / 4) &&
+                     ramWrite(m, GOAL_POSITION, m.start) && ramWrite(m, TORQUE_ENABLE, 1) &&
+                     ramWrite(m, GOAL_POSITION, m.target) && waitFor(m, m.target) &&
+                     ramWrite(m, GOAL_POSITION, m.start) && waitFor(m, m.start);
+  release();
+  const bool ok = moved && !blocked;
+  if (ok) Serial.printf("WIGGLE DONE ID%u\n", id);
+  else Serial.printf("WIGGLE FAIL ID%u: the move did not complete; check that the horn turns freely.\n", id);
+  return ok;
+}
+
+// "SETUP 11" -> 11; anything but a prefix and an ID 11-19 -> 0.
+uint8_t idArgument(const char* command, const char* prefix) {
+  const size_t n = strlen(prefix);
+  if (strncmp(command, prefix, n) != 0 || strlen(command) != n + 2) return 0;
+  const char tens = command[n], ones = command[n + 1];
+  if (tens != '1' || ones < '1' || ones > '9') return 0;
+  return static_cast<uint8_t>(10 + (ones - '0'));
+}
+
+void setupServo(uint8_t id) {
+  if (pendingRestore || blocked) {
+    Serial.println("SETUP REFUSED: RELEASE the current alignment first.");
+    return;
+  }
+  ServoSetup::setup(id);
+}
+
+// "MOVEID 13 21": two IDs, each 11-19 or 21-29. Returns false if malformed.
+bool moveCommand(const char* command) {
+  const char* prefix = "MOVEID ";
+  const size_t n = strlen(prefix);
+  if (strncmp(command, prefix, n) != 0 || strlen(command) != n + 5 || command[n + 2] != ' ') return false;
+  auto two = [](const char* s) -> uint8_t {
+    if (s[0] < '1' || s[0] > '2' || s[1] < '1' || s[1] > '9') return 0;
+    return static_cast<uint8_t>((s[0] - '0') * 10 + (s[1] - '0'));
+  };
+  const uint8_t from = two(command + n), to = two(command + n + 3);
+  if (!from || !to || from == to) return false;
+  if (pendingRestore || blocked) Serial.println("MOVEID REFUSED: RELEASE the current alignment first.");
+  else ServoSetup::moveId(from, to);
+  return true;
 }
 
 // Used by both the Arduino loop and host tests, including overflow handling.
@@ -222,7 +345,13 @@ void consume(char c) {
   else if (!overflow && strcmp(command, "ALIGNBR") == 0) begin(17);
   else if (!overflow && strcmp(command, "STATUS") == 0) HeadConfig::status();
   else if (!overflow && strcmp(command, "LEGS") == 0) HeadConfig::legStatus();
-  else if (used) Serial.println("Commands: CENTERHEAD, ALIGNFL, ALIGNFR, ALIGNBL, ALIGNBR, STATUS, LEGS, KEEP, RELEASE, !");
+  else if (!overflow && strcmp(command, "SCAN") == 0) ServoSetup::scan();
+  else if (!overflow && strcmp(command, "POS") == 0) ServoSetup::positions();
+  else if (!overflow && idArgument(command, "SETUP ")) setupServo(idArgument(command, "SETUP "));
+  else if (!overflow && idArgument(command, "WIGGLE ")) wiggle(idArgument(command, "WIGGLE "));
+  else if (!overflow && moveCommand(command)) {}
+  else if (used) Serial.println("Commands: SCAN, SETUP <11-19>, WIGGLE <11-19>, MOVEID <from> <to>, POS, "
+                                "CENTERHEAD, ALIGNFL, ALIGNFR, ALIGNBL, ALIGNBR, STATUS, LEGS, KEEP, RELEASE, !");
   used = 0; overflow = false;
 }
 } // namespace SquroAssembly

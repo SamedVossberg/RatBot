@@ -1,6 +1,11 @@
 /*
 Written by yufeng.wu0902@gmail.com
 
+RatBot with biomimetic legs: do not use this program. It ends by driving every
+joint to the Q8 five-bar mounting pose, and its slot names below refer to the
+Q8bot body orientation. Use the assemble_squro environment with
+tools/assembly_console.py instead; see ASSEMBLE_SQURO.md.
+
 Initial setup helper code for q8bot. Configur brand new Dynamixel motors
 for robot use: motor ID, baudrate, direction, control mode, offset...
 Workflow:
